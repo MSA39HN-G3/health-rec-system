@@ -1,0 +1,18 @@
+{
+  "errors": {
+    "bad_request": "Bad request.",
+    "not_found": "Resource not found.",
+    "validation": "Validation failed.",
+    "conflict": "Conflict with the current state of the resource.",
+    "unauthorized": "Authentication is required.",
+    "forbidden": "You do not have permission to perform this action.",
+    "internal": "An unexpected error occurred. Please try again later.",
+    "google_not_configured": "Google login is not configured on the server.",
+    "google_unreachable": "Could not reach Google. Please try again later.",
+    "google_code_invalid": "The Google authorization code is invalid or has expired.",
+    "google_token_invalid": "The Google token is invalid."
+  },
+  "messages": {
+    "login_success": "Signed in successfully."
+  }
+}
