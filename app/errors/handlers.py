@@ -19,7 +19,7 @@ def register_error_handlers(app):
     def handle_app_exception(exc):
         db.session.rollback()
         message = translate(exc.message_key, **exc.params)
-        return error_response(message, exc.status_code, details=exc.details)
+        return error_response(message, exc.status_code, data=exc.details)
 
     @app.errorhandler(HTTPException)
     def handle_http_exception(exc):

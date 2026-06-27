@@ -3,6 +3,9 @@ from ..models.user import User
 
 
 class UserRepository:
+    def find_by_id(self, user_id):
+        return db.session.get(User, user_id)
+
     def find_by_google_sub(self, google_sub):
         return User.query.filter_by(google_sub=google_sub).first()
 

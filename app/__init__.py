@@ -5,6 +5,7 @@ from .config import get_config
 from .errors import register_error_handlers
 from .extensions import db, migrate
 from .i18n import init_i18n
+from .middleware import register_middlewares
 
 
 def create_app(config_name=None):
@@ -20,6 +21,7 @@ def create_app(config_name=None):
 
     init_i18n(app)
     register_error_handlers(app)
+    register_middlewares(app)
     register_blueprints(app)
 
     @app.get("/health")

@@ -8,6 +8,7 @@ Luồng tổng quát:
 
 Tài liệu: https://developers.google.com/identity/protocols/oauth2/web-server
 """
+import logging
 import secrets
 from urllib.parse import urlencode
 
@@ -18,11 +19,15 @@ from google.oauth2 import id_token as google_id_token
 
 from ..errors import AppException, UnauthorizedException
 
+logger = logging.getLogger(__name__)
+
 # Các endpoint công khai của Google.
 GOOGLE_AUTH_URI = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token"
 
 _HTTP_TIMEOUT = 10  # giây
+# Cho phép lệch đồng hồ nhỏ giữa server và Google (giây).
+_CLOCK_SKEW = 10
 
 
 def _require_config():
@@ -89,10 +94,15 @@ def verify_id_token(id_token_str):
             id_token_str,
             google_requests.Request(),
             cfg["GOOGLE_CLIENT_ID"],
+            clock_skew_in_seconds=_CLOCK_SKEW,
         )
-    except ValueError:
-        # Token không hợp lệ / sai audience / hết hạn.
-        raise UnauthorizedException("errors.google_token_invalid")
+    except ValueError as exc:
+        # Token không hợp lệ / sai audience / hết hạn / lệch đồng hồ.
+        # Log lý do thật để dễ chẩn đoán (vd "Token expired", "Token used too early").
+        logger.warning("Google id_token verification failed: %s", exc)
+        raise UnauthorizedException(
+            "errors.google_token_invalid", details={"reason": str(exc)}
+        )
     return claims
 
 

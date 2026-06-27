@@ -6,13 +6,21 @@
     "conflict": "Xung đột với trạng thái hiện tại của tài nguyên.",
     "unauthorized": "Yêu cầu cần được xác thực.",
     "forbidden": "Bạn không có quyền thực hiện hành động này.",
+    "rate_limited": "Quá nhiều yêu cầu. Vui lòng thử lại sau.",
     "internal": "Đã xảy ra lỗi không mong muốn. Vui lòng thử lại sau.",
     "google_not_configured": "Đăng nhập Google chưa được cấu hình trên máy chủ.",
     "google_unreachable": "Không thể kết nối tới Google. Vui lòng thử lại sau.",
     "google_code_invalid": "Mã ủy quyền của Google không hợp lệ hoặc đã hết hạn.",
-    "google_token_invalid": "Token của Google không hợp lệ."
+    "google_token_invalid": "Token của Google không hợp lệ.",
+    "invalid_state": "State đăng nhập không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.",
+    "token_missing": "Thiếu token xác thực.",
+    "token_invalid": "Token xác thực không hợp lệ.",
+    "token_expired": "Token xác thực đã hết hạn.",
+    "token_revoked": "Token xác thực đã bị thu hồi. Vui lòng đăng nhập lại."
   },
   "messages": {
-    "login_success": "Đăng nhập thành công."
+    "login_success": "Đăng nhập thành công.",
+    "onboarded": "Chào mừng! Tài khoản của bạn đã được tạo.",
+    "logout_success": "Đăng xuất thành công."
   }
 }
