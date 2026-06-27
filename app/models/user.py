@@ -17,6 +17,8 @@ class User(db.Model):
     full_name = db.Column(db.String(255))
     picture = db.Column(db.String(512))
     email_verified = db.Column(db.Boolean, default=False, nullable=False)
+    # Trạng thái tài khoản. False = bị vô hiệu hóa (chặn mọi thao tác).
+    is_active = db.Column(db.Boolean, default=True, nullable=False, server_default="true")
     created_at = db.Column(db.DateTime(timezone=True), default=_now, nullable=False)
     last_login_at = db.Column(db.DateTime(timezone=True))
 
@@ -61,6 +63,7 @@ class User(db.Model):
             "full_name": self.full_name,
             "picture": self.picture,
             "email_verified": self.email_verified,
+            "is_active": self.is_active,
             "roles": sorted(self.role_names()),
             "permissions": sorted(self.permission_names()),
             "last_login_at": self.last_login_at.isoformat() if self.last_login_at else None,

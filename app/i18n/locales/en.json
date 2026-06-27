@@ -19,7 +19,9 @@
     "token_revoked": "The authentication token has been revoked. Please sign in again.",
     "role_not_found": "Role not found.",
     "permission_not_found": "Permission not found.",
-    "role_exists": "A role with this name already exists."
+    "role_exists": "A role with this name already exists.",
+    "account_disabled": "Your account has been disabled. Please contact an administrator.",
+    "cannot_disable_self": "You cannot disable your own account."
   },
   "messages": {
     "login_success": "Signed in successfully.",
@@ -29,6 +31,7 @@
     "role_removed": "Role removed from user successfully.",
     "role_created": "Role created successfully.",
     "permission_assigned": "Permission assigned to role successfully.",
-    "permission_removed": "Permission removed from role successfully."
+    "permission_removed": "Permission removed from role successfully.",
+    "user_status_updated": "User status updated successfully."
   }
 }

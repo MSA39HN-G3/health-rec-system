@@ -13,6 +13,7 @@ from ...common.roles import Permission
 from ...i18n import translate
 from ...middleware import (
     Field,
+    current_user,
     require_permission,
     validate_body,
     validate_query,
@@ -65,6 +66,19 @@ def remove_user_role(user_id, role_name):
     user = _user_service.remove_role(user_id, role_name)
     return success_response(
         {"user": user.to_dict()}, message=translate("messages.role_removed")
+    )
+
+
+@bp.patch("/users/<int:user_id>/status")
+@require_permission(Permission.USER_MANAGE)
+@validate_body({"is_active": Field(bool, required=True)})
+def set_user_status(user_id):
+    """Bật/tắt (disable) tài khoản user. Disable -> user bị chặn mọi thao tác."""
+    user = _user_service.set_active(
+        user_id, validated()["is_active"], acting_user_id=current_user().id
+    )
+    return success_response(
+        {"user": user.to_dict()}, message=translate("messages.user_status_updated")
     )
 
 

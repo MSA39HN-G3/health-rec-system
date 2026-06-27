@@ -1,5 +1,5 @@
 """Service quản lý user (dùng cho khu vực admin)."""
-from ..errors import NotFoundException
+from ..errors import BadRequestException, NotFoundException
 from ..repositories.role_repository import RoleRepository
 from ..repositories.user_repository import UserRepository
 
@@ -28,6 +28,15 @@ class UserService:
         if role not in user.roles:
             user.roles.append(role)
             self.users.commit()
+        return user
+
+    def set_active(self, user_id, is_active, acting_user_id=None):
+        """Bật/tắt (disable) tài khoản user. Không cho tự vô hiệu hóa chính mình."""
+        user = self.get_user(user_id)
+        if not is_active and acting_user_id is not None and user.id == acting_user_id:
+            raise BadRequestException("errors.cannot_disable_self")
+        user.is_active = is_active
+        self.users.commit()
         return user
 
     def remove_role(self, user_id, role_name):
