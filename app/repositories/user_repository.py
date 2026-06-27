@@ -12,6 +12,13 @@ class UserRepository:
     def find_by_email(self, email):
         return User.query.filter_by(email=email).first()
 
+    def paginate(self, page, size):
+        """Lấy danh sách user theo trang. Trả về (items, total)."""
+        query = User.query.order_by(User.id)
+        total = query.count()
+        items = query.offset((page - 1) * size).limit(size).all()
+        return items, total
+
     def add(self, user):
         db.session.add(user)
         return user

@@ -1,6 +1,7 @@
 from flask import Flask
 
 from .api import register_blueprints
+from .cli import register_cli
 from .config import get_config
 from .errors import register_error_handlers
 from .extensions import db, migrate
@@ -23,6 +24,7 @@ def create_app(config_name=None):
     register_error_handlers(app)
     register_middlewares(app)
     register_blueprints(app)
+    register_cli(app)
 
     @app.get("/health")
     def health_check():

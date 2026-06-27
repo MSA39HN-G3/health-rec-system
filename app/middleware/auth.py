@@ -11,7 +11,7 @@ from functools import wraps
 import jwt
 from flask import g, request
 
-from ..errors import UnauthorizedException
+from ..errors import ForbiddenException, UnauthorizedException
 from ..repositories.token_blacklist_repository import TokenBlacklistRepository
 from ..repositories.user_repository import UserRepository
 from ..services import token_service
@@ -47,6 +47,46 @@ def require_auth(fn):
         return fn(*args, **kwargs)
 
     return wrapper
+
+
+def require_role(*roles):
+    """Yêu cầu user đã đăng nhập VÀ có ít nhất một trong các role cho phép.
+
+    Dùng: @require_role(Role.ADMIN) hoặc @require_role(Role.DOCTOR, Role.DEPARTMENT_HEAD).
+    Chưa đăng nhập -> 401; đã đăng nhập nhưng thiếu role -> 403.
+    """
+
+    def decorator(fn):
+        @require_auth
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            if not g.current_user.has_role(*roles):
+                raise ForbiddenException()
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+def require_permission(*permissions):
+    """Yêu cầu user đã đăng nhập VÀ có ít nhất một trong các permission cho phép.
+
+    Dùng: @require_permission(Permission.USER_MANAGE).
+    Chưa đăng nhập -> 401; đã đăng nhập nhưng thiếu permission -> 403.
+    """
+
+    def decorator(fn):
+        @require_auth
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            if not g.current_user.has_permission(*permissions):
+                raise ForbiddenException()
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 def _extract_bearer_token():

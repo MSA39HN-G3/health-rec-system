@@ -16,11 +16,19 @@
     "token_missing": "Authentication token is missing.",
     "token_invalid": "The authentication token is invalid.",
     "token_expired": "The authentication token has expired.",
-    "token_revoked": "The authentication token has been revoked. Please sign in again."
+    "token_revoked": "The authentication token has been revoked. Please sign in again.",
+    "role_not_found": "Role not found.",
+    "permission_not_found": "Permission not found.",
+    "role_exists": "A role with this name already exists."
   },
   "messages": {
     "login_success": "Signed in successfully.",
     "onboarded": "Welcome! Your account has been created.",
-    "logout_success": "Signed out successfully."
+    "logout_success": "Signed out successfully.",
+    "role_assigned": "Role assigned to user successfully.",
+    "role_removed": "Role removed from user successfully.",
+    "role_created": "Role created successfully.",
+    "permission_assigned": "Permission assigned to role successfully.",
+    "permission_removed": "Permission removed from role successfully."
   }
 }
