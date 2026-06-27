@@ -6,13 +6,21 @@
     "conflict": "Conflict with the current state of the resource.",
     "unauthorized": "Authentication is required.",
     "forbidden": "You do not have permission to perform this action.",
+    "rate_limited": "Too many requests. Please try again later.",
     "internal": "An unexpected error occurred. Please try again later.",
     "google_not_configured": "Google login is not configured on the server.",
     "google_unreachable": "Could not reach Google. Please try again later.",
     "google_code_invalid": "The Google authorization code is invalid or has expired.",
-    "google_token_invalid": "The Google token is invalid."
+    "google_token_invalid": "The Google token is invalid.",
+    "invalid_state": "The login state is invalid or has expired. Please start again.",
+    "token_missing": "Authentication token is missing.",
+    "token_invalid": "The authentication token is invalid.",
+    "token_expired": "The authentication token has expired.",
+    "token_revoked": "The authentication token has been revoked. Please sign in again."
   },
   "messages": {
-    "login_success": "Signed in successfully."
+    "login_success": "Signed in successfully.",
+    "onboarded": "Welcome! Your account has been created.",
+    "logout_success": "Signed out successfully."
   }
 }
