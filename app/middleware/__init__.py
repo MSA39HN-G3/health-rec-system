@@ -4,7 +4,7 @@
 rate limit). Validation áp theo từng route qua decorator `validate_body` /
 `validate_query`.
 """
-from .auth import current_user, require_auth
+from .auth import current_user, require_auth, require_permission, require_role
 from .cors import init_cors
 from .logging import init_logging
 from .rate_limit import init_rate_limit, rate_limit
@@ -20,6 +20,8 @@ __all__ = [
     "register_middlewares",
     "rate_limit",
     "require_auth",
+    "require_role",
+    "require_permission",
     "current_user",
     "Field",
     "validate_body",

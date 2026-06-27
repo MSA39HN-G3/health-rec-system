@@ -16,11 +16,19 @@
     "token_missing": "Thiếu token xác thực.",
     "token_invalid": "Token xác thực không hợp lệ.",
     "token_expired": "Token xác thực đã hết hạn.",
-    "token_revoked": "Token xác thực đã bị thu hồi. Vui lòng đăng nhập lại."
+    "token_revoked": "Token xác thực đã bị thu hồi. Vui lòng đăng nhập lại.",
+    "role_not_found": "Không tìm thấy role.",
+    "permission_not_found": "Không tìm thấy permission.",
+    "role_exists": "Role với tên này đã tồn tại."
   },
   "messages": {
     "login_success": "Đăng nhập thành công.",
     "onboarded": "Chào mừng! Tài khoản của bạn đã được tạo.",
-    "logout_success": "Đăng xuất thành công."
+    "logout_success": "Đăng xuất thành công.",
+    "role_assigned": "Gán role cho user thành công.",
+    "role_removed": "Gỡ role khỏi user thành công.",
+    "role_created": "Tạo role thành công.",
+    "permission_assigned": "Gán permission cho role thành công.",
+    "permission_removed": "Gỡ permission khỏi role thành công."
   }
 }
