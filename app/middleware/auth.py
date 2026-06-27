@@ -39,6 +39,10 @@ def require_auth(fn):
         user = _users.find_by_id(_to_int(payload.get("sub")))
         if user is None:
             raise UnauthorizedException("errors.token_invalid")
+        # User bị vô hiệu hóa -> chặn mọi thao tác (kiểm tra mỗi request nên có
+        # hiệu lực ngay khi admin disable, không cần chờ token hết hạn).
+        if not user.is_active:
+            raise ForbiddenException("errors.account_disabled")
 
         # Lưu ngữ cảnh cho controller và endpoint logout.
         g.current_user = user

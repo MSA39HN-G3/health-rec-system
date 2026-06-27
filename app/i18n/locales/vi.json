@@ -19,7 +19,9 @@
     "token_revoked": "Token xác thực đã bị thu hồi. Vui lòng đăng nhập lại.",
     "role_not_found": "Không tìm thấy role.",
     "permission_not_found": "Không tìm thấy permission.",
-    "role_exists": "Role với tên này đã tồn tại."
+    "role_exists": "Role với tên này đã tồn tại.",
+    "account_disabled": "Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.",
+    "cannot_disable_self": "Bạn không thể vô hiệu hóa tài khoản của chính mình."
   },
   "messages": {
     "login_success": "Đăng nhập thành công.",
@@ -29,6 +31,7 @@
     "role_removed": "Gỡ role khỏi user thành công.",
     "role_created": "Tạo role thành công.",
     "permission_assigned": "Gán permission cho role thành công.",
-    "permission_removed": "Gỡ permission khỏi role thành công."
+    "permission_removed": "Gỡ permission khỏi role thành công.",
+    "user_status_updated": "Cập nhật trạng thái user thành công."
   }
 }

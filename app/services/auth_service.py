@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 
 from flask import current_app
 
-from ..errors import UnauthorizedException
+from ..errors import ForbiddenException, UnauthorizedException
 from ..models.user import User
 from ..repositories.oauth_state_repository import OAuthStateRepository
 from ..repositories.token_blacklist_repository import TokenBlacklistRepository
@@ -82,6 +82,9 @@ class AuthService:
             # Onboard: user lần đầu đăng nhập -> tạo bản ghi mới trong hệ thống.
             user = User(google_sub=claims["sub"])
             self.users.add(user)
+        elif not user.is_active:
+            # Tài khoản đã bị vô hiệu hóa -> không cho đăng nhập.
+            raise ForbiddenException("errors.account_disabled")
 
         user.apply_google_claims(claims)
         self.users.commit()
