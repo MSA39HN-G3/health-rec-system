@@ -1,3 +1,4 @@
+from .department import Department
 from .oauth_state import OAuthState
 from .rbac import Permission, Role, role_permissions, user_roles
 from .token_blacklist import TokenBlacklist
@@ -11,4 +12,5 @@ __all__ = [
     "Permission",
     "user_roles",
     "role_permissions",
+    "Department",
 ]

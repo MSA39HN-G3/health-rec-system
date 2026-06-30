@@ -54,6 +54,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.USER_READ,
         Permission.USER_MANAGE,
         Permission.ROLE_MANAGE,
+        Permission.DEPARTMENT_MANAGE,
     ],
     Role.DEPARTMENT_HEAD: [
         Permission.RECORD_READ,
