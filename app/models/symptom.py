@@ -30,6 +30,9 @@ class Symptom(db.Model):
     )
 
     category = db.relationship("SymptomCategory", back_populates="symptoms")
+    department_mappings = db.relationship(
+        "SymptomDepartmentMap", back_populates="symptom", lazy="select"
+    )
 
     def to_dict(self):
         return {

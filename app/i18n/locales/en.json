@@ -25,7 +25,10 @@
     "department_code_exists": "A department with this code already exists.",
     "department_not_found": "Department not found.",
     "head_doctor_not_found": "The selected head doctor was not found.",
-    "head_doctor_not_doctor": "The selected user must have the doctor role."
+    "head_doctor_not_doctor": "The selected user must have the doctor role.",
+    "symptom_category_not_found": "Symptom category not found.",
+    "symptom_not_found": "Symptom not found.",
+    "symptom_code_exists": "A symptom with this code already exists."
   },
   "messages": {
     "login_success": "Signed in successfully.",
@@ -38,6 +41,12 @@
     "permission_removed": "Permission removed from role successfully.",
     "user_status_updated": "User status updated successfully.",
     "department_created": "Department created successfully.",
-    "department_updated": "Department updated successfully."
+    "department_updated": "Department updated successfully.",
+    "symptom_category_created": "Symptom category created successfully.",
+    "symptom_category_updated": "Symptom category updated successfully.",
+    "symptom_category_deleted": "Symptom category deleted successfully.",
+    "symptom_created": "Symptom created successfully.",
+    "symptom_updated": "Symptom updated successfully.",
+    "symptom_deactivated": "Symptom deactivated successfully."
   }
 }

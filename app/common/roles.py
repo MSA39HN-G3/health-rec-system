@@ -27,6 +27,7 @@ class Permission:
     RECORD_READ = "record:read"      # xem hồ sơ
     RECORD_WRITE = "record:write"    # tạo/sửa hồ sơ
     DEPARTMENT_MANAGE = "department:manage"  # quản lý khoa
+    SYMPTOM_MANAGE = "symptom:manage"        # quản lý triệu chứng & ánh xạ
 
     ALL = (
         USER_READ,
@@ -35,6 +36,7 @@ class Permission:
         RECORD_READ,
         RECORD_WRITE,
         DEPARTMENT_MANAGE,
+        SYMPTOM_MANAGE,
     )
 
 
@@ -46,6 +48,7 @@ PERMISSION_DESCRIPTIONS = {
     Permission.RECORD_READ: "Xem hồ sơ sức khỏe",
     Permission.RECORD_WRITE: "Tạo/sửa hồ sơ sức khỏe",
     Permission.DEPARTMENT_MANAGE: "Quản lý khoa",
+    Permission.SYMPTOM_MANAGE: "Quản lý triệu chứng và ánh xạ chuyên khoa",
 }
 
 # Role -> danh sách permission mặc định khi seed.
