@@ -21,7 +21,11 @@
     "permission_not_found": "Permission not found.",
     "role_exists": "A role with this name already exists.",
     "account_disabled": "Your account has been disabled. Please contact an administrator.",
-    "cannot_disable_self": "You cannot disable your own account."
+    "cannot_disable_self": "You cannot disable your own account.",
+    "department_code_exists": "A department with this code already exists.",
+    "department_not_found": "Department not found.",
+    "head_doctor_not_found": "The selected head doctor was not found.",
+    "head_doctor_not_doctor": "The selected user must have the doctor role."
   },
   "messages": {
     "login_success": "Signed in successfully.",
@@ -32,6 +36,8 @@
     "role_created": "Role created successfully.",
     "permission_assigned": "Permission assigned to role successfully.",
     "permission_removed": "Permission removed from role successfully.",
-    "user_status_updated": "User status updated successfully."
+    "user_status_updated": "User status updated successfully.",
+    "department_created": "Department created successfully.",
+    "department_updated": "Department updated successfully."
   }
 }

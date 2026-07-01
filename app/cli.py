@@ -51,6 +51,38 @@ def register_cli(app):
         seed_rbac()
         click.echo("Đã seed RBAC: roles=%s" % ", ".join(Role.ALL))
 
+    @app.cli.command("seed-departments")
+    def seed_departments_command():
+        """Tạo vài khoa mẫu (idempotent theo tên) để test nhanh.
+
+        Mã khoa ("CK-NNN") do service tự sinh nên seed không truyền `code`.
+        """
+        from .services.department_service import DepartmentService
+
+        svc = DepartmentService()
+        samples = [
+            {
+                "name": "Tim mạch",
+                "location": "Tầng 3, Tòa nhà A",
+                "description": "Khoa chẩn đoán và điều trị bệnh lý tim mạch.",
+                "keywords": ["chest_pain", "palpitations", "hypertension"],
+                "conditions": ["myocardial_infarction", "arrhythmia"],
+            },
+            {
+                "name": "Thần kinh",
+                "location": "Tầng 4, Tòa nhà A",
+                "description": "Khoa chẩn đoán và điều trị bệnh lý hệ thần kinh.",
+                "keywords": ["headache", "seizure", "dizziness"],
+                "conditions": ["stroke", "epilepsy"],
+            },
+        ]
+        created = 0
+        for s in samples:
+            if svc.departments.find_by_name(s["name"]) is None:
+                svc.create_department(**s)
+                created += 1
+        click.echo(f"Đã seed departments: {created} khoa mới.")
+
     @app.cli.command("grant-role")
     @click.argument("email")
     @click.argument("role")

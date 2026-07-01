@@ -67,7 +67,7 @@ kèm `roles` và `permissions`:
 | `role:manage` | Tạo role, gán/gỡ permission | admin |
 | `record:read` | Xem hồ sơ sức khỏe | doctor, department_head |
 | `record:write` | Tạo/sửa hồ sơ sức khỏe | doctor, department_head |
-| `department:manage` | Quản lý khoa | department_head |
+| `department:manage` | Quản lý khoa (xem [`FE_DEPARTMENT.md`](./FE_DEPARTMENT.md)) | admin, department_head |
 
 > Mapping trên là **mặc định khi seed**; admin có thể thay đổi qua API quản lý role.
 
