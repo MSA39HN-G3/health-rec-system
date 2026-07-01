@@ -1,6 +1,8 @@
 from .department import Department
 from .oauth_state import OAuthState
 from .rbac import Permission, Role, role_permissions, user_roles
+from .symptom_category import SymptomCategory
+from .symptom import Symptom
 from .token_blacklist import TokenBlacklist
 from .user import User
 
@@ -13,4 +15,6 @@ __all__ = [
     "user_roles",
     "role_permissions",
     "Department",
+    "SymptomCategory",
+    "Symptom",
 ]
