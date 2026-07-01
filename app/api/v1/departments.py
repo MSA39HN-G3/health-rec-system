@@ -1,9 +1,11 @@
 """Controller quản lý khoa/chuyên khoa.
 
 Bảo vệ theo PERMISSION `department:manage` (cả admin và department_head đều qua,
-đúng triết lý RBAC DB-driven). Bước đầu cung cấp:
-  - POST /api/v1/departments  -> tạo khoa mới (chọn trưởng khoa tùy chọn)
-  - GET  /api/v1/departments  -> danh sách khoa (phân trang)
+đúng triết lý RBAC DB-driven). Cung cấp:
+  - POST  /api/v1/departments        -> tạo khoa mới (chọn trưởng khoa tùy chọn)
+  - GET   /api/v1/departments        -> danh sách khoa (phân trang)
+  - GET   /api/v1/departments/stats  -> thống kê số lượng khoa
+  - PATCH /api/v1/departments/<id>   -> cập nhật từng phần (gồm ảnh, kĩ thuật chuyên môn)
 
 Lưu ý: middleware `Field` chỉ validate kiểu scalar (string/int/...), KHÔNG hỗ trợ
 array/object. Vì vậy các trường `keywords`/`conditions`/`ai_metadata` được validate
@@ -49,24 +51,34 @@ def list_departments():
     )
 
 
+@bp.get("/stats")
+@require_permission(Permission.DEPARTMENT_MANAGE)
+def department_stats():
+    """Thống kê số lượng khoa: tổng / đang hoạt động / tạm dừng."""
+    return success_response(_service.get_stats())
+
+
 @bp.post("")
 @require_permission(Permission.DEPARTMENT_MANAGE)
 @validate_body(
     {
-        "code": Field(str, required=True, min_length=1, max_length=32),
         "name": Field(str, required=True, min_length=1, max_length=255),
+        "location": Field(str, required=False, max_length=255),
         "description": Field(str, required=False, max_length=5000),
         "head_doctor_id": Field(int, required=False, minimum=1),
     }
 )
 def create_department():
+    # Lưu ý: mã khoa ("CK-NNN") do hệ thống tự sinh, không nhận từ client.
+    # Trạng thái hoạt động cũng được suy ra (true khi và chỉ khi có trưởng khoa),
+    # nên không nằm trong body.
     data = validated()
     keywords = _string_list("keywords", max_items=50, max_len=64)
     conditions = _string_list("conditions", max_items=50, max_len=128)
     ai_metadata = _object("ai_metadata")
     department = _service.create_department(
-        code=data["code"],
         name=data["name"],
+        location=data.get("location"),
         description=data.get("description"),
         keywords=keywords,
         conditions=conditions,
@@ -77,6 +89,44 @@ def create_department():
         department.to_dict(),
         message=translate("messages.department_created"),
         status_code=201,
+    )
+
+
+@bp.patch("/<int:department_id>")
+@require_permission(Permission.DEPARTMENT_MANAGE)
+@validate_body(
+    {
+        "name": Field(str, required=False, min_length=1, max_length=255),
+        "location": Field(str, required=False, max_length=255, nullable=True),
+        "avatar_url": Field(str, required=False, max_length=512, nullable=True),
+        "description": Field(str, required=False, max_length=5000, nullable=True),
+        "head_doctor_id": Field(int, required=False, minimum=1, nullable=True),
+    }
+)
+def update_department(department_id):
+    # Cập nhật TỪNG PHẦN: chỉ field nào có trong body mới bị thay đổi.
+    # - `code` không cho sửa (hệ thống cấp); `is_active` suy ra từ `head_doctor_id`.
+    # - field nhận null (location/avatar_url/description/head_doctor_id) -> xóa giá trị.
+    changes = dict(validated())
+
+    # Array/object validate thủ công, chỉ áp dụng khi field thực sự có trong body.
+    raw = _raw_body()
+    if "keywords" in raw:
+        changes["keywords"] = _string_list("keywords", max_items=50, max_len=64)
+    if "conditions" in raw:
+        changes["conditions"] = _string_list("conditions", max_items=50, max_len=128)
+    if "techniques" in raw:
+        changes["techniques"] = _string_list("techniques", max_items=100, max_len=255)
+    if "ai_metadata" in raw:
+        changes["ai_metadata"] = _object("ai_metadata")
+
+    if not changes:
+        raise ValidationException(details={"_body": "no_fields"})
+
+    department = _service.update_department(department_id, **changes)
+    return success_response(
+        department.to_dict(),
+        message=translate("messages.department_updated"),
     )
 
 

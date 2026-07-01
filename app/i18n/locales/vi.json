@@ -23,6 +23,7 @@
     "account_disabled": "Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.",
     "cannot_disable_self": "Bạn không thể vô hiệu hóa tài khoản của chính mình.",
     "department_code_exists": "Mã khoa này đã tồn tại.",
+    "department_not_found": "Không tìm thấy khoa.",
     "head_doctor_not_found": "Không tìm thấy trưởng khoa được chọn.",
     "head_doctor_not_doctor": "Người dùng được chọn phải có role bác sĩ."
   },
@@ -36,6 +37,7 @@
     "permission_assigned": "Gán permission cho role thành công.",
     "permission_removed": "Gỡ permission khỏi role thành công.",
     "user_status_updated": "Cập nhật trạng thái user thành công.",
-    "department_created": "Tạo khoa thành công."
+    "department_created": "Tạo khoa thành công.",
+    "department_updated": "Cập nhật khoa thành công."
   }
 }

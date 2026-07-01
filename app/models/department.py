@@ -24,6 +24,12 @@ class Department(db.Model):
     # Mã khoa duy nhất (vd "CARDIO"). Dùng làm điểm tham chiếu ổn định.
     code = db.Column(db.String(32), unique=True, nullable=False, index=True)
     name = db.Column(db.String(255), nullable=False)
+    # Vị trí của khoa (vd "Tầng 3, Tòa nhà A"). Tùy chọn.
+    location = db.Column(db.String(255))
+    # Ảnh đại diện của khoa (URL). Tùy chọn.
+    avatar_url = db.Column(db.String(512))
+    # Danh mục các kĩ thuật chuyên môn của khoa (vd "Nội soi tiêu hóa", "Siêu âm tim").
+    techniques = db.Column(ARRAY(db.String(255)), nullable=False, server_default="{}")
 
     # --- Trường phục vụ AI/LLM routing ---
     # Mô tả giàu thông tin (free-text), phù hợp để sinh embedding / semantic match.
@@ -54,9 +60,12 @@ class Department(db.Model):
             "id": self.id,
             "code": self.code,
             "name": self.name,
+            "location": self.location,
+            "avatar_url": self.avatar_url,
             "description": self.description,
             "keywords": list(self.keywords or []),
             "conditions": list(self.conditions or []),
+            "techniques": list(self.techniques or []),
             "ai_metadata": self.ai_metadata or {},
             "head_doctor_id": self.head_doctor_id,
             "head_doctor": (
