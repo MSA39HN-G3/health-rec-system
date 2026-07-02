@@ -36,7 +36,8 @@ class Field:
     """Khai báo ràng buộc cho một trường.
 
     type: kiểu dữ liệu mong muốn — "string"|str, "integer"|int, "number"|float,
-          "boolean"|bool, hoặc "email".
+          "boolean"|bool, "email", hoặc "array"|list (mảng chuỗi; min_length/
+          max_length áp dụng cho số phần tử).
     """
 
     def __init__(
@@ -89,7 +90,7 @@ class Field:
     def _check_constraints(self, value):
         if self.choices is not None and value not in self.choices:
             return "invalid_choice"
-        if self.type in ("string", "email"):
+        if self.type in ("string", "email", "array"):
             if self.min_length is not None and len(value) < self.min_length:
                 return "too_short"
             if self.max_length is not None and len(value) > self.max_length:
@@ -108,10 +109,12 @@ def _normalize_type(type):
         int: "integer",
         float: "number",
         bool: "boolean",
+        list: "array",
         "str": "string",
         "int": "integer",
         "float": "number",
         "bool": "boolean",
+        "list": "array",
     }
     return mapping.get(type, type)
 
@@ -159,6 +162,13 @@ def _coerce(type, value, strip):
             except ValueError:
                 return False, "invalid_type"
         return False, "invalid_type"
+
+    if type == "array":
+        if not isinstance(value, list):
+            return False, "invalid_type"
+        if not all(isinstance(item, str) for item in value):
+            return False, "invalid_item_type"
+        return True, [item.strip() if strip else item for item in value]
 
     return False, "unknown_type"
 
