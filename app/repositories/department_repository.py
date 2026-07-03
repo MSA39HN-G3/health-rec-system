@@ -12,6 +12,14 @@ class DepartmentRepository:
     def find_by_name(self, name):
         return Department.query.filter_by(name=name).first()
 
+    def find_by_head_doctor_id(self, user_id):
+        """Khoa mà user đang là trưởng khoa (None nếu không phụ trách khoa nào)."""
+        return (
+            Department.query.filter_by(head_doctor_id=user_id)
+            .order_by(Department.id)
+            .first()
+        )
+
     def max_code_number(self, prefix="CK-"):
         """Số thứ tự lớn nhất trong các mã dạng `prefix + NNN`. Trả 0 nếu chưa có.
 
