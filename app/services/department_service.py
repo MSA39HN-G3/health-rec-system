@@ -186,11 +186,13 @@ class DepartmentService:
         if not old_key or old_key == new_key:
             return
         # Import trong hàm để tránh import vòng (storage -> extensions).
+        from botocore.exceptions import BotoCoreError, ClientError
+
         from .storage import delete_object
 
         try:
             delete_object(old_key)
-        except Exception as exc:  # noqa: BLE001 — best-effort cleanup
+        except (BotoCoreError, ClientError) as exc:
             logger.warning(
                 "Failed to delete old department avatar from R2: %s (key=%s)",
                 exc,

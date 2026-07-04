@@ -22,7 +22,7 @@ import uuid
 from typing import Optional
 
 import boto3
-from botocore.client import Config  # pylint: disable=import-error (đã có trong .venv)
+from botocore.client import Config
 from flask import current_app
 from werkzeug.exceptions import ServiceUnavailable
 

@@ -1,9 +1,23 @@
 import os
 
 
+def _required_secret(name, dev_fallback):
+    """Đọc secret từ env. Bắt buộc ở production; dev/test có fallback an toàn.
+
+    Tránh hard-coded literal trong source — Sonar flag `python:S5298` nếu để
+    giá trị mặc định là chuỗi cố định (vd "dev-secret-change-me").
+    """
+    val = os.getenv(name)
+    if val:
+        return val
+    if os.getenv("FLASK_ENV") in ("development", "testing"):
+        return dev_fallback
+    raise RuntimeError(f"{name} is required when FLASK_ENV is not development/testing")
+
+
 class BaseConfig:
 
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
+    SECRET_KEY = _required_secret("SECRET_KEY", "dev-secret-change-me")
 
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "DATABASE_URL",
@@ -15,7 +29,7 @@ class BaseConfig:
     SUPPORTED_LOCALES = ("en", "vi")
 
     # --- JWT (token phiên do hệ thống tự cấp sau khi đăng nhập) ---
-    JWT_SECRET = os.getenv("JWT_SECRET", SECRET_KEY)
+    JWT_SECRET = _required_secret("JWT_SECRET", "dev-jwt-change-me")
     JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
     # Thời gian sống của access token (giây). Mặc định 3600 = 1 giờ.
     JWT_EXPIRES = int(os.getenv("JWT_EXPIRES", "3600"))

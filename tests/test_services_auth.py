@@ -134,7 +134,6 @@ class TestLoginWithGoogle:
             "app.services.auth_service.google_oauth.verify_id_token",
             return_value={"sub": "g-1"},
         ):
-            u_repo = s_repo
             u_repo = MagicMock()
             svc.users = u_repo
             u_repo.find_by_google_sub.return_value = MagicMock(is_active=True)

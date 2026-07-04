@@ -309,9 +309,11 @@ class TestCleanupOldAvatar:
 
     def test_delete_failure_logged_not_raised(self):
         svc, *_ = _svc()
+        from botocore.exceptions import BotoCoreError
+
         with patch(
             "app.services.storage.delete_object",
-            side_effect=RuntimeError("r2 down"),
+            side_effect=BotoCoreError(),
         ):
             # Không raise.
             svc._cleanup_old_avatar("old", "new")
