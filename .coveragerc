@@ -3,12 +3,24 @@
 # exclude để SonarCloud Quality Gate không fail vì coverage thấp ở chỗ
 # ít quan trọng, đồng thời số liệu chỉ phản ánh code business logic.
 [run]
+# Đo coverage cho cả `app/`. Đường dẫn trong XML là relative tới `app/`
+# (vd `services/auth_service.py`), khớp với đường dẫn mà SonarCloud scan
+# được từ `sonar.sources=app`.
 source =
-    app/services
+    app
 
 branch = True
 
+# Xuất filename RELATIVE so với project root thay vì absolute path.
+# Bắt buộc cho SonarCloud: trên GitHub Actions (Linux), absolute path sẽ là
+# /home/runner/work/... — không match với repo path -> Sonar báo 0% coverage.
+# Với relative_files, file name trong XML luôn là "services/auth_service.py"
+# giống nhau trên mọi OS (Windows local, Linux CI, Mac, ...).
+relative_files = True
+
 # Không đo thư mục KHÔNG PHẢI services/ — những chỗ này là wiring/ORM/transport.
+# SonarCloud cũng đã loại các thư mục này qua sonar.coverage.exclusions, nên
+# omit ở đây chỉ để khớp số liệu hiển thị trong terminal khi chạy pytest.
 omit =
     app/__init__.py
     app/cli.py
