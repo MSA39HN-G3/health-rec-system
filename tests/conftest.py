@@ -1,23 +1,26 @@
-"""Chứa các fixture dùng chung cho mọi test.
+"""Fixture dùng chung cho test.
 
-Mỗi test chạy trong app context riêng + DB in-memory SQLite.
-Các service gắn liền với Google OAuth / R2 được monkey-patch
-qua fixture `mock_external_services`.
+Mỗi test chạy trong app context riêng. **KHÔNG** gọi `db.create_all()` ở
+fixture `app` vì model `Department`/`Symptom` dùng ARRAY/JSONB (Postgres-only)
+không tương thích SQLite. Test dùng mock repository (MagicMock) nên không cần
+schema; test nào thật sự cần DB sẽ dùng fixture `db_sqlite` (xem bên dưới)
+chỉ tạo table SQLite-compatible.
 """
 from __future__ import annotations
 
 import os
-from typing import Any
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
 import pytest
 
-# Trước khi import app phải đặt env test để app.config sinh đúng CORS/JWT secret.
+# ------------------------------------------------------------------
+# Set env TRƯỚC khi import app.
+# ------------------------------------------------------------------
 os.environ.setdefault("FLASK_ENV", "testing")
 os.environ.setdefault("TESTING", "1")
 os.environ.setdefault("JWT_SECRET", "test-secret")
 os.environ.setdefault("JWT_EXPIRES", "3600")
-# Tên biến phải khớp với các os.getenv(...) trong app/config.py.
 os.environ.setdefault("GOOGLE_CLIENT_ID", "test-google-client-id")
 os.environ.setdefault("GOOGLE_CLIENT_SECRET", "test-google-client-secret")
 os.environ.setdefault("GOOGLE_REDIRECT_URI", "http://localhost/cb")
@@ -25,35 +28,57 @@ os.environ.setdefault("R2_ACCOUNT_ID", "test-r2-account")
 os.environ.setdefault("R2_ACCESS_KEY_ID", "test-r2-key")
 os.environ.setdefault("R2_SECRET_ACCESS_KEY", "test-r2-secret")
 os.environ.setdefault("R2_BUCKET", "test-bucket")
-os.environ.setdefault(
-    "R2_ENDPOINT", "https://test.r2.cloudflarestorage.com"
-)
-# Tắt rate limit trong test (dù TestingConfig đã tắt, set lại cho chắc).
 os.environ.setdefault("RATELIMIT_ENABLED", "false")
 
 
-@pytest.fixture(scope="session")
-def _config_test_db():
-    """Buộc app dùng SQLite in-memory cho toàn session."""
-    os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
-    return True
+# Danh sách model SQLite-friendly (bỏ Department, Doctor, Symptom,
+# SymptomCategory? — kiểm tra dưới).
+_SQLITE_SAFE_TABLES = {
+    "users", "roles", "permissions", "user_roles", "role_permissions",
+    "oauth_states", "token_blacklist",
+    # SymptomCategory: dùng String/Integer, OK.
+    "symptom_categories",
+    # Bỏ "departments" (ARRAY/JSONB), "doctors" (FK tới departments → fail
+    # cascade), "symptoms" (JSONB), "symptom_department_maps".
+}
 
 
 @pytest.fixture()
-def app(_config_test_db, monkeypatch):
-    """Tạo Flask app mới cho mỗi test, kèm DB sạch (drop & create)."""
-    # Import trong fixture để env đã được set.
+def app(monkeypatch):
     from app import create_app
     from app.extensions import db
 
     app = create_app("testing")
 
     with app.app_context():
-        db.drop_all()
-        db.create_all()
+        # KHÔNG gọi create_all() toàn bộ — một số model dùng Postgres ARRAY/JSONB.
+        # Test nào cần DB thật phải opt-in qua fixture `db_sqlite`.
         yield app
         db.session.remove()
-        db.drop_all()
+
+
+@pytest.fixture()
+def db_sqlite(app):
+    """Opt-in: tạo schema SQLite-friendly. Dùng cho test integration thật."""
+    from app.extensions import db
+
+    with app.app_context():
+        # Chỉ tạo table an toàn với SQLite.
+        for table in db.metadata.sorted_tables:
+            if table.name in _SQLITE_SAFE_TABLES:
+                table.create(db.engine, checkfirst=True)
+        yield db
+        for table in reversed(db.metadata.sorted_tables):
+            if table.name in _SQLITE_SAFE_TABLES:
+                table.drop(db.engine, checkfirst=True)
+        db.session.remove()
+
+
+# Alias `db` cho code cũ — không tạo schema.
+@pytest.fixture()
+def db(app):
+    from app.extensions import db as _db
+    return _db
 
 
 @pytest.fixture()
@@ -61,169 +86,205 @@ def client(app):
     return app.test_client()
 
 
-@pytest.fixture()
-def db(app):
-    """DB session, có sẵn app context."""
-    from app.extensions import db as _db
-
-    return _db
-
-
-# ---------- Fixtures về user / role / permission ----------
+# ============================================================
+# Factory: tạo Role / Permission / User trực tiếp (cần db_sqlite).
+# ============================================================
 
 @pytest.fixture()
-def admin_user(db):
-    """Tạo user + role admin (full permissions)."""
-    from app.common.roles import RoleName
-    from app.repositories import role_repository, user_repository
-    from app.models.rbac import Role, Permission as PermModel
+def make_permission(db_sqlite):
+    from app.models.rbac import Permission
 
-    # Tạo permission test nếu chưa có (an toàn vì test DB sạch).
-    perm_manage_dept = PermModel(
-        code="department:manage", description="manage departments"
-    )
-    perm_manage_sym = PermModel(code="symptom:manage", description="manage symptoms")
-    db.session.add_all([perm_manage_dept, perm_manage_sym])
-    db.session.flush()
+    def _make(code, description=None):
+        perm = Permission(name=code, description=description or code)
+        db_sqlite.session.add(perm)
+        db_sqlite.session.flush()
+        return perm
 
-    role = role_repository.create(
-        name=RoleName.ADMIN.value,
-        description="admin role",
-        permission_codes=[
-            "department:manage",
-            "symptom:manage",
-            "doctor:read",
-            "user:read",
-        ],
-    )
+    return _make
 
-    user = user_repository.create(
-        email="admin@test.local",
-        name="Admin Test",
+
+@pytest.fixture()
+def make_role(db_sqlite, make_permission):
+    from app.models.rbac import Role
+
+    def _make(name, permission_codes=()):
+        role = Role(name=name, description=name)
+        for code in permission_codes:
+            role.permissions.append(make_permission(code))
+        db_sqlite.session.add(role)
+        db_sqlite.session.flush()
+        return role
+
+    return _make
+
+
+@pytest.fixture()
+def make_user(db_sqlite):
+    from app.models.user import User
+
+    def _make(
+        *,
+        google_sub=None,
+        email=None,
+        full_name="Test User",
+        is_active=True,
+        roles=None,
+        picture=None,
+        email_verified=False,
+    ):
+        google_sub = google_sub or f"g-{email}"
+        email = email or f"{google_sub}@test.local"
+        user = User(
+            google_sub=google_sub,
+            email=email,
+            full_name=full_name,
+            is_active=is_active,
+            picture=picture,
+            email_verified=email_verified,
+        )
+        for role in roles or []:
+            user.roles.append(role)
+        db_sqlite.session.add(user)
+        db_sqlite.session.flush()
+        return user
+
+    return _make
+
+
+@pytest.fixture()
+def admin_user(db_sqlite, make_role, make_user):
+    role = make_role("admin", ["department:manage", "symptom:manage"])
+    return make_user(
         google_sub="g-admin",
-        role_id=role.id,
-        is_new=False,
+        email="admin@test.local",
+        full_name="Admin",
+        roles=[role],
     )
-    db.session.commit()
-    return user
 
 
 @pytest.fixture()
-def dept_head_user(db):
-    """User với role department_head (chỉ có department:manage)."""
-    from app.common.roles import RoleName
-    from app.repositories import role_repository, user_repository
-    from app.models.rbac import Role, Permission as PermModel
-
-    PermModel(code="department:manage", description="manage departments")
-    db.session.flush()
-
-    role = role_repository.create(
-        name=RoleName.DEPARTMENT_HEAD.value,
-        description="dept head",
-        permission_codes=["department:manage"],
-    )
-    user = user_repository.create(
-        email="depthead@test.local",
-        name="Dept Head Test",
+def dept_head_user(db_sqlite, make_role, make_user):
+    role = make_role("department_head", ["department:manage"])
+    return make_user(
         google_sub="g-head",
-        role_id=role.id,
-        is_new=False,
+        email="head@test.local",
+        full_name="Head",
+        roles=[role],
     )
-    db.session.commit()
-    return user
 
 
 @pytest.fixture()
-def plain_user(db):
-    """User thường, không có permission quản lý gì."""
-    from app.common.roles import RoleName
-    from app.repositories import role_repository, user_repository
-
-    role = role_repository.create(
-        name=RoleName.USER.value,
-        description="plain user",
-        permission_codes=[],
+def plain_user(db_sqlite, make_role, make_user):
+    role = make_role("user", [])
+    return make_user(
+        google_sub="g-plain",
+        email="plain@test.local",
+        full_name="Plain",
+        roles=[role],
     )
-    user = user_repository.create(
-        email="user@test.local",
-        name="Plain User",
-        google_sub="g-user",
-        role_id=role.id,
-        is_new=False,
+
+
+@pytest.fixture()
+def doctor_user(db_sqlite, make_role, make_user):
+    role = make_role("doctor", [])
+    return make_user(
+        google_sub="g-doc",
+        email="doc@test.local",
+        full_name="Doctor Who",
+        roles=[role],
     )
-    db.session.commit()
-    return user
 
 
-# ---------- Helper: cấp token cho user bất kỳ ----------
+# ============================================================
+# Token helpers
+# ============================================================
 
 @pytest.fixture()
 def make_token(app):
-    """Factory sinh access_token cho user bất kỳ (qua auth_service thật)."""
-    from app.services.auth_service import AuthService
+    from app.services.token_service import issue_access_token
 
-    svc = AuthService()
-
-    def _make(user) -> tuple[str, Any]:
-        token, exp = svc.issue_token(user)
-        return token, exp
+    def _make(user):
+        token, jti, exp = issue_access_token(user)
+        return token, jti, exp
 
     return _make
 
 
 @pytest.fixture()
 def auth_header(make_token):
-    """Factory trả header Authorization sẵn cho từng loại user."""
-
-    def _header(user) -> dict[str, str]:
-        token, _ = make_token(user)
+    def _header(user):
+        token, _, _ = make_token(user)
         return {"Authorization": f"Bearer {token}"}
 
     return _header
 
 
-# ---------- Mock các dịch vụ ngoài (Google OAuth + R2) ----------
+# ============================================================
+# Mock các dịch vụ ngoài
+# ============================================================
 
 @pytest.fixture()
 def mock_external_services(monkeypatch):
-    """Mock Google OAuth + Cloudflare R2 để test không phụ thuộc mạng/key thật.
-
-    Trả về dict chứa các mock để test có thể điều chỉnh giá trị trả về.
-    """
-    mocks = {
-        "google_exchange": MagicMock(
-            return_value={
-                "sub": "g-test",
-                "email": "test@test.local",
-                "name": "Test User",
-                "picture": None,
-            }
-        ),
-        "presign_put": MagicMock(
-            return_value={
-                "method": "PUT",
-                "url": "https://test.r2.cloudflarestorage.com/test-bucket/avatar/test.png?X-Amz-Signature=abc",
-                "headers": {"Content-Type": "image/png"},
-                "expires_in": 900,
-            }
-        ),
-        "presign_get": MagicMock(
-            return_value={
-                "url": "https://test.r2.cloudflarestorage.com/test-bucket/avatar/test.png?X-Amz-Signature=xyz",
-                "expires_in": 3600,
-            }
-        ),
-        "head_exists": MagicMock(return_value=True),
-    }
-
-    # Patch trong module services/auth_service và services/storage
+    """Mock Google OAuth + Cloudflare R2."""
     from app.services import auth_service as _auth_mod
     from app.services import storage as _storage_mod
 
-    monkeypatch.setattr(_auth_mod, "exchange_google_code", mocks["google_exchange"])
-    monkeypatch.setattr(_storage_mod, "presign_put", mocks["presign_put"])
-    monkeypatch.setattr(_storage_mod, "presign_get", mocks["presign_get"])
-    monkeypatch.setattr(_storage_mod, "head_exists", mocks["head_exists"])
+    google_exchange = MagicMock(
+        return_value={
+            "id_token": "fake.id.token",
+            "access_token": "fake-access",
+        }
+    )
+    presign_put = MagicMock(
+        return_value={
+            "method": "PUT",
+            "url": "https://r2.test/bucket/key?X-Amz-Signature=abc",
+            "headers": {"Content-Type": "image/png"},
+            "expires_in": 600,
+        }
+    )
+    presign_get = MagicMock(
+        return_value="https://r2.test/bucket/key?X-Amz-Signature=xyz"
+    )
+    head_exists = MagicMock(return_value=True)
+    delete_obj = MagicMock(return_value=True)
 
-    return mocks
+    monkeypatch.setattr(_auth_mod, "exchange_code_for_tokens", google_exchange)
+    monkeypatch.setattr(
+        _auth_mod, "verify_id_token",
+        MagicMock(return_value={
+            "sub": "g-test", "email": "test@test.local", "name": "Test User",
+            "picture": None, "email_verified": True,
+        }),
+    )
+    monkeypatch.setattr(_storage_mod, "presign_put", presign_put)
+    monkeypatch.setattr(_storage_mod, "presign_get", presign_get)
+    monkeypatch.setattr(_storage_mod, "head_exists", head_exists)
+    monkeypatch.setattr(_storage_mod, "delete_object", delete_obj)
+
+    return {
+        "google_exchange": google_exchange,
+        "presign_put": presign_put,
+        "presign_get": presign_get,
+        "head_exists": head_exists,
+        "delete_obj": delete_obj,
+    }
+
+
+# ============================================================
+# Time helpers
+# ============================================================
+
+@pytest.fixture()
+def now_utc():
+    return datetime.now(timezone.utc)
+
+
+@pytest.fixture()
+def future_dt():
+    return datetime.now(timezone.utc) + timedelta(seconds=600)
+
+
+@pytest.fixture()
+def past_dt():
+    return datetime.now(timezone.utc) - timedelta(seconds=600)

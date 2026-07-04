@@ -1,128 +1,113 @@
 # Testing — Health Rec System
 
-Tài liệu này hướng dẫn chạy test, tạo fixture mới và debug khi fail.
+Test tập trung vào `app/services/` (business logic). Mục tiêu:
+**coverage > 80% cho `app/services/`**, các folder khác được SonarCloud ignore.
 
-## 1. Cài dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-Trong đó đã bao gồm:
-- `pytest==8.3.4` — runner.
-- `pytest-flask==1.3.0` — hỗ trợ `client` cho Flask.
-- `pytest-mock==3.14.0` — wrapper gọn cho `unittest.mock`.
-
-## 2. Chạy test
-
-```bash
-# Toàn bộ
-pytest
-
-# Một file
-pytest tests/test_departments.py
-
-# Một test cụ thể (theo tên function)
-pytest tests/test_auth.py::test_logout_revokes_token -v
-
-# Dừng ở lỗi đầu tiên
-pytest -x
-
-# Dùng pdb khi fail
-pytest --pdb
-```
-
-## 3. Cấu trúc
+## Cấu trúc
 
 ```
 tests/
-├── conftest.py        # Fixture dùng chung: app, client, db, auth_header, mock R2/Google
-├── test_health.py     # /health
-├── test_auth.py       # /api/v1/auth/*  (google url/callback, me, logout)
-├── test_departments.py# /api/v1/departments/*  (list, stats, create, update)
-├── test_symptoms.py   # /api/v1/symptoms/*  (categories + symptoms)
-├── test_doctors.py    # /api/v1/doctors  (phân quyền admin vs dept_head)
-├── test_uploads.py    # /api/v1/uploads/*  (presign, confirm)
-└── README_TESTING.md  # File này
+├── conftest.py                    # Fixture: app, db, make_role/user/permission, mock_external_services
+├── test_health.py                 # Smoke test (1 test)
+├── test_services_symptom.py       # SymptomService
+├── test_services_department.py    # DepartmentService (logic nặng nhất)
+├── test_services_auth.py          # AuthService (OAuth + token + blacklist)
+├── test_services_doctor.py        # DoctorService (phân quyền admin vs dept_head)
+├── test_services_role_user.py     # RoleService + UserService
+├── test_services_storage.py       # Cloudflare R2 helpers
+├── test_services_google_oauth.py  # google_oauth (state, build URL, exchange, verify)
+├── test_services_token.py         # token_service (issue/decode JWT)
+└── README_TESTING.md              # File này
 ```
 
-## 4. Quy ước đặt tên
+## Chạy
 
-| Loại | Pattern | Ví dụ |
-|---|---|---|
-| File | `test_<module>.py` | `test_auth.py` |
-| Function | `test_<action>_<expected>` | `test_create_department_returns_201` |
-| Fixture (conftest) | danh từ / role | `admin_user`, `auth_header`, `make_token` |
+```bash
+pip install -r requirements.txt
 
-## 5. Các fixture chính
+# Toàn bộ test
+pytest
 
-| Fixture | Trả về | Dùng cho |
-|---|---|---|
-| `app` | Flask app, DB `:memory:` đã drop + create | bất kỳ |
-| `client` | `app.test_client()` | gọi HTTP |
-| `db` | SQLAlchemy session | query, create trực tiếp |
-| `admin_user` | user có permission `department:manage`, `symptom:manage` | test quản trị |
-| `dept_head_user` | user chỉ có `department:manage`, không phải admin | test phân quyền |
-| `plain_user` | user không có permission gì | test 403 |
-| `auth_header(user)` | dict `{"Authorization": "Bearer ..."}` | gắn vào `client.get/post` |
-| `make_token(user)` | `(token, expires_at)` | test token thủ công |
-| `mock_external_services` | dict các MagicMock cho `exchange_google_code`, `presign_put/get`, `head_exists` | test không phụ thuộc R2/Google thật |
+# Chỉ test 1 service
+pytest tests/test_services_department.py
 
-## 6. Pattern thường dùng
+# 1 test class cụ thể
+pytest tests/test_services_doctor.py::TestListDoctors
 
-### Test endpoint cần auth
+# Xem coverage report trong terminal (không XML)
+pytest --cov=app --cov-report=term-missing
 
-```python
-def test_xxx(client, auth_header, plain_user):
-    headers = auth_header(plain_user)
-    response = client.get("/api/v1/xxx", headers=headers)
-    assert response.status_code == 200
+# Sinh XML cho SonarCloud
+pytest --cov=app --cov-branch --cov-report=xml:reports/coverage.xml \
+       --junitxml=reports/pytest-junit.xml
 ```
 
-### Test endpoint yêu cầu permission
+## Coverage
+
+| File phạm vi | Quy tắc |
+|---|---|
+| `app/services/**` | **Được đo** — mục tiêu ≥ 80% |
+| `app/api/**` | Không đo (wiring/transport) |
+| `app/models/**` | Không đo (ORM, đơn giản) |
+| `app/repositories/**` | Không đo (data access) |
+| `app/middleware/**` | Không đo |
+| `app/common/**, errors/**, i18n/**` | Không đo |
+
+Cấu hình ở `.coveragerc` (dùng `source = app/services` + `omit`).
+
+Khi push lên GitHub → CI đẩy `reports/coverage.xml` lên SonarCloud →
+SonarCloud vẽ tab Coverage và so với Quality Gate (>80% trên services).
+
+## Pattern thường dùng
+
+### Test service với mock repository (nhanh nhất)
 
 ```python
-def test_xxx_requires_permission(client, auth_header, plain_user):
-    # plain_user KHÔNG có permission nên phải trả 403.
-    response = client.post(
-        "/api/v1/xxx",
-        headers=auth_header(plain_user),
-        json={"name": "test"},
-    )
-    assert response.status_code == 403
+from unittest.mock import MagicMock
+from app.services.department_service import DepartmentService
+
+def test_xxx():
+    d_repo = MagicMock()
+    d_repo.find_by_id.return_value = MagicMock()
+    svc = DepartmentService(department_repository=d_repo)
+
+    result = svc.update_department(1, name="Mới")
+    assert result.name == "Mới"
 ```
 
-### Test mock service ngoài
+### Test với DB in-memory (chậm hơn nhưng test integration thật)
 
 ```python
-def test_upload(monkeypatch, client, auth_header, plain_user):
-    from app.services import storage as _storage_mod
-    monkeypatch.setattr(_storage_mod, "head_exists", lambda key: True)
+def test_xxx(db, make_role, make_user):
+    role = make_role("admin", ["department:manage"])
+    user = make_user(google_sub="x", email="x@test.local", roles=[role])
+    # Gọi service thực
+    from app.services.department_service import DepartmentService
+    DepartmentService().update_department(...)
+```
 
+### Mock service ngoài (Google OAuth / R2)
+
+```python
+def test_xxx(mock_external_services):
+    # mock_external_services đã patch sẵn trong conftest
+    # Dùng mock_external_services["presign_put"] để chỉnh return_value
     response = client.post(...)
 ```
 
-## 7. Lỗi thường gặp
+## Lỗi thường gặp
 
 | Lỗi | Nguyên nhân & sửa |
 |---|---|
-| `RuntimeError: Working outside of application context` | gọi model ngoài `app.app_context()` → đảm bảo dùng `db.session.add(...)` qua fixture `db` (fixture này đã có app context) |
-| `AssertionError: 422 != 400` | nhầm lẫn giữa validation (422) và business rule (400) |
-| `AssertionError: 401 != 200` | token hết hạn / chưa gắn header / bị blacklist |
-| Test chạy OK từng file nhưng fail khi chạy all | do fixture `app` chưa set `scope="function"` — nên mỗi test có app riêng |
-| `sqlite3.OperationalError: no such table` | bỏ qua `db.drop_all()` / `db.create_all()` trong fixture `app` — kiểm tra `conftest.py` |
+| `RuntimeError: Working outside of application context` | Dùng `app.app_context()` (auto qua fixture `app`) |
+| `sqlite3.OperationalError: no such table` | Quên `create_all()` — kiểm tra fixture `app` trong conftest |
+| Test pass local, fail CI | Có thể do timezone — `datetime.now(timezone.utc)` chuẩn hoá từ đầu |
+| Coverage < 80% | Bổ sung test trong file `test_services_<name>.py` tương ứng |
 
-## 8. Khi test fail ở CI (Sonar / GitHub Actions)
+## Thêm test mới
 
-```yaml
-- name: Run tests
-  run: |
-    python -m pytest --junitxml=test-report.xml
-- name: Publish results
-  uses: actions/upload-artifact@v4
-  with:
-    name: test-report
-    path: test-report.xml
-```
-
-Job fail → tải artifact `test-report.xml` để xem chi tiết.
+1. Tạo file `tests/test_services_<name>.py` (nếu chưa có service này).
+2. Đặt tên function `test_<action>_<expected>` (theo convention pytest).
+3. Nếu service có cấu trúc phức tạp → nhóm theo `class Test<MethodGroup>`.
+4. Chạy `pytest tests/test_services_<name>.py -v` để verify.
+5. Chạy `pytest --cov=app/services/<name>.py --cov-report=term-missing` để xem coverage cụ thể.
