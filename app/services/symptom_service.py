@@ -1,14 +1,21 @@
 from ..errors import ConflictException, NotFoundException
 from ..models.symptom import Symptom
 from ..models.symptom_category import SymptomCategory
+from ..repositories.department_repository import DepartmentRepository
 from ..repositories.symptom_category_repository import SymptomCategoryRepository
 from ..repositories.symptom_repository import SymptomRepository
 
 
 class SymptomService:
-    def __init__(self, symptom_repo=None, category_repo=None):
+    def __init__(
+        self,
+        symptom_repo=None,
+        category_repo=None,
+        department_repo=None,
+    ):
         self.symptoms = symptom_repo or SymptomRepository()
         self.categories = category_repo or SymptomCategoryRepository()
+        self.departments = department_repo or DepartmentRepository()
 
     # ------------------------------------------------------------------ #
     #  Categories                                                          #
@@ -47,8 +54,18 @@ class SymptomService:
     #  Symptoms                                                            #
     # ------------------------------------------------------------------ #
 
-    def list_symptoms(self, page, size, category_id=None, is_active=None):
-        return self.symptoms.paginate(page, size, category_id=category_id, is_active=is_active)
+    def list_symptoms(self, page, size, category_id=None, is_active=None, department_id=None):
+        if department_id is not None:
+            department = self.departments.find_by_id(department_id)
+            if department is None:
+                raise NotFoundException("errors.department_not_found")
+        return self.symptoms.paginate(
+            page,
+            size,
+            category_id=category_id,
+            is_active=is_active,
+            department_id=department_id,
+        )
 
     def get_symptom(self, symptom_id):
         symptom = self.symptoms.find_by_id(symptom_id)

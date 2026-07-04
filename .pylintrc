@@ -1,0 +1,17 @@
+# Pylint config cho dự án health-rec-system.
+# Mục đích: giải quyết import-error với các package đã cài trong .venv nhưng
+# Pylint mặc định không tìm ra (vd botocore, boto3, sqlalchemy binary dist).
+
+[MAIN]
+# Dùng interpreter của venv làm chuẩn; nếu ai chạy global Python sẽ vẫn lỗi
+# vì package chưa cài (đó là tín hiệu đúng).
+init-hook =
+    import sys, os
+    venv = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".venv", "Lib", "site-packages")
+    if os.path.isdir(venv):
+        sys.path.insert(0, venv)
+
+# Tắt các rule ồn trong project này.
+disable =
+    # Alembic.op là module dynamic, pylint phân tích tĩnh không thấy.
+    no-member,
