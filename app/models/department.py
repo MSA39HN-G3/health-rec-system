@@ -26,7 +26,13 @@ class Department(db.Model):
     name = db.Column(db.String(255), nullable=False)
     # Vị trí của khoa (vd "Tầng 3, Tòa nhà A"). Tùy chọn.
     location = db.Column(db.String(255))
-    # Ảnh đại diện của khoa (URL). Tùy chọn.
+    # Ảnh đại diện của khoa.
+    # Có 2 cách lưu:
+    #  - `avatar_object_key`: key trong R2 sau khi upload (ưu tiên, dùng để sinh
+    #    presigned GET mỗi lần trả response). Lưu DB thay vì URL để tránh URL hết hạn.
+    #  - `avatar_url`: cache URL public (chỉ dùng khi bucket được public qua
+    #    custom domain). Nếu không set thì BE tự derive từ `avatar_object_key`.
+    avatar_object_key = db.Column(db.String(512))
     avatar_url = db.Column(db.String(512))
     # Danh mục các kĩ thuật chuyên môn của khoa (vd "Nội soi tiêu hóa", "Siêu âm tim").
     techniques = db.Column(ARRAY(db.String(255)), nullable=False, server_default="{}")
@@ -56,11 +62,24 @@ class Department(db.Model):
     )
 
     def to_dict(self):
+        from ..services.storage import presign_get
+
+        avatar_object_key = self.avatar_object_key
+        # Ưu tiên URL đã lưu (cache hoặc custom domain). Nếu không có thì
+        # BE tự sinh presigned GET từ object_key để client hiển thị. Cache lại
+        # để gọi API tiếp theo dùng ngay (vẫn có TTL 1 giờ ở URL).
+        if not self.avatar_url and avatar_object_key:
+            try:
+                self.avatar_url = presign_get(avatar_object_key)
+            except Exception:
+                # Storage chưa cấu hình -> để None, FE xử lý fallback.
+                self.avatar_url = None
         return {
             "id": self.id,
             "code": self.code,
             "name": self.name,
             "location": self.location,
+            "avatar_object_key": avatar_object_key,
             "avatar_url": self.avatar_url,
             "description": self.description,
             "keywords": list(self.keywords or []),

@@ -66,12 +66,15 @@ def department_stats():
         "location": Field(str, required=False, max_length=255),
         "description": Field(str, required=False, max_length=5000),
         "head_doctor_id": Field(int, required=False, minimum=1),
+        # is_active: bật/tắt khoa ngay khi tạo. Mặc định False (khoa tạo ra ở
+        # trạng thái tạm dừng). Nếu client gửi True mà không có head_doctor_id
+        # hợp lệ -> BE trả 400 (kiểm tra ở service, không phải validation 422
+        # vì đây là ràng buộc nghiệp vụ liên quan 2 field).
+        "is_active": Field(bool, required=False, default=False),
     }
 )
 def create_department():
     # Lưu ý: mã khoa ("CK-NNN") do hệ thống tự sinh, không nhận từ client.
-    # Trạng thái hoạt động cũng được suy ra (true khi và chỉ khi có trưởng khoa),
-    # nên không nằm trong body.
     data = validated()
     keywords = _string_list("keywords", max_items=50, max_len=64)
     conditions = _string_list("conditions", max_items=50, max_len=128)
@@ -84,6 +87,7 @@ def create_department():
         conditions=conditions,
         ai_metadata=ai_metadata,
         head_doctor_id=data.get("head_doctor_id"),
+        is_active=data["is_active"],
     )
     return success_response(
         department.to_dict(),
@@ -99,6 +103,9 @@ def create_department():
         "name": Field(str, required=False, min_length=1, max_length=255),
         "location": Field(str, required=False, max_length=255, nullable=True),
         "avatar_url": Field(str, required=False, max_length=512, nullable=True),
+        "avatar_object_key": Field(
+            str, required=False, max_length=512, nullable=True
+        ),
         "description": Field(str, required=False, max_length=5000, nullable=True),
         "head_doctor_id": Field(int, required=False, minimum=1, nullable=True),
     }
@@ -106,7 +113,8 @@ def create_department():
 def update_department(department_id):
     # Cập nhật TỪNG PHẦN: chỉ field nào có trong body mới bị thay đổi.
     # - `code` không cho sửa (hệ thống cấp); `is_active` suy ra từ `head_doctor_id`.
-    # - field nhận null (location/avatar_url/description/head_doctor_id) -> xóa giá trị.
+    # - field nhận null (location/avatar_url/avatar_object_key/description/head_doctor_id)
+    #   -> xóa giá trị.
     changes = dict(validated())
 
     # Array/object validate thủ công, chỉ áp dụng khi field thực sự có trong body.

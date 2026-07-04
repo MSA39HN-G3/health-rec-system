@@ -26,6 +26,11 @@
     "department_not_found": "Department not found.",
     "head_doctor_not_found": "The selected head doctor was not found.",
     "head_doctor_not_doctor": "The selected user must have the doctor role.",
+    "head_required_when_active": "A head doctor is required when activating a department.",
+    "upload_kind_unsupported": "Unsupported upload kind.",
+    "upload_content_type_unsupported": "This file type is not allowed.",
+    "upload_too_large": "The file exceeds the maximum allowed size.",
+    "upload_object_not_found": "Object was not found in storage.",
     "symptom_category_not_found": "Symptom category not found.",
     "symptom_not_found": "Symptom not found.",
     "symptom_code_exists": "A symptom with this code already exists."
@@ -47,6 +52,8 @@
     "symptom_category_deleted": "Symptom category deleted successfully.",
     "symptom_created": "Symptom created successfully.",
     "symptom_updated": "Symptom updated successfully.",
-    "symptom_deactivated": "Symptom deactivated successfully."
+    "symptom_deactivated": "Symptom deactivated successfully.",
+    "upload_presigned": "Upload URL generated.",
+    "upload_confirmed": "Upload confirmed."
   }
 }

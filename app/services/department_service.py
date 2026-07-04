@@ -1,4 +1,6 @@
 """Service quản lý khoa/chuyên khoa (khu vực admin)."""
+import logging
+
 from sqlalchemy.exc import IntegrityError
 
 from ..common.roles import Role
@@ -7,6 +9,8 @@ from ..models.department import Department
 from ..repositories.department_repository import DepartmentRepository
 from ..repositories.role_repository import RoleRepository
 from ..repositories.user_repository import UserRepository
+
+logger = logging.getLogger(__name__)
 
 # Tiền tố mã chuyên khoa (vd "CK-001") và số lần thử lại khi đụng độ mã do tạo
 # đồng thời (unique violation) trước khi bỏ cuộc.
@@ -44,6 +48,7 @@ class DepartmentService:
         conditions=None,
         ai_metadata=None,
         head_doctor_id=None,
+        is_active=False,
     ):
         # 1. Nếu chỉ định trưởng khoa: phải tồn tại và phải đang là bác sĩ.
         head = None
@@ -54,8 +59,11 @@ class DepartmentService:
             if not head.has_role(Role.DOCTOR):
                 raise BadRequestException("errors.head_doctor_not_doctor")
 
-        # 2. Trạng thái hoạt động = true KHI VÀ CHỈ KHI có trưởng khoa.
-        is_active = head is not None
+        # 2. Nghiệp vụ: bật khoa (`is_active=True`) chỉ hợp lệ khi đã chọn được
+        #    một trưởng khoa hợp lệ. Đây là ràng buộc giữa 2 field nên được kiểm
+        #    tra ở service (raise 400), không phải ở tầng validation 422.
+        if is_active and head is None:
+            raise BadRequestException("errors.head_required_when_active")
 
         # 3. Sinh mã "CK-NNN" duy nhất do hệ thống cấp. Thử lại nếu đụng độ unique
         #    do hai request tạo khoa cùng lúc cùng tính ra một số thứ tự.
@@ -94,6 +102,7 @@ class DepartmentService:
         name=_UNSET,
         location=_UNSET,
         avatar_url=_UNSET,
+        avatar_object_key=_UNSET,
         description=_UNSET,
         keywords=_UNSET,
         conditions=_UNSET,
@@ -105,6 +114,10 @@ class DepartmentService:
 
         Mã khoa (`code`) là cố định, không cho sửa. Khi đổi trưởng khoa thì
         `is_active` được tính lại theo quy tắc iff (true ⇔ có trưởng khoa).
+
+        `avatar_object_key` được ưu tiên hơn `avatar_url`: khi set object_key
+        thì cũng xoá cache URL cũ để buộc BE sinh lại presigned GET lần kế.
+        Gửi null cho cả hai field đều xoá ảnh.
         """
         department = self.departments.find_by_id(department_id)
         if department is None:
@@ -130,6 +143,19 @@ class DepartmentService:
             department.location = location
         if avatar_url is not _UNSET:
             department.avatar_url = avatar_url
+        if avatar_object_key is not _UNSET:
+            # Snapshot key cũ TRƯỚC khi gán — dùng để xóa object trên R2
+            # sau khi commit DB thành công (xem `self._cleanup_old_avatar`).
+            old_object_key = department.avatar_object_key
+            new_object_key = avatar_object_key
+
+            department.avatar_object_key = new_object_key
+            # Khi gán object_key mới hoặc xoá (None) thì cache URL cũ không
+            # còn hợp lệ -> xoá để to_dict() tự derive lại presigned GET.
+            department.avatar_url = None
+        else:
+            old_object_key = None
+            new_object_key = None
         if description is not _UNSET:
             department.description = description
         if keywords is not _UNSET:
@@ -142,7 +168,34 @@ class DepartmentService:
             department.ai_metadata = ai_metadata
 
         self.departments.commit()
+        # Cleanup R2 chạy SAU commit: nếu commit fail thì DB vẫn giữ key cũ,
+        # R2 cũng còn file cũ -> dữ liệu nhất quán. Nếu commit OK mà xóa R2
+        # lỗi thì chỉ tốn storage (orphan), không ảnh hưởng nghiệp vụ.
+        self._cleanup_old_avatar(old_object_key, new_object_key)
         return department
+
+    def _cleanup_old_avatar(self, old_key, new_key):
+        """Xóa object avatar cũ trên R2 sau khi DB đã được commit thành công.
+
+        An toàn với:
+          - PATCH đổi sang key mới (`old_key != new_key`, cả 2 khác None).
+          - PATCH xoá avatar (`new_key is None`, `old_key` còn giá trị).
+          - PATCH set cùng key hiện tại (idempotent, không xóa).
+        Lỗi R2 chỉ log warning — không raise, không rollback.
+        """
+        if not old_key or old_key == new_key:
+            return
+        # Import trong hàm để tránh import vòng (storage -> extensions).
+        from .storage import delete_object
+
+        try:
+            delete_object(old_key)
+        except Exception as exc:  # noqa: BLE001 — best-effort cleanup
+            logger.warning(
+                "Failed to delete old department avatar from R2: %s (key=%s)",
+                exc,
+                old_key,
+            )
 
     def _next_code(self):
         """Mã chuyên khoa kế tiếp dạng `CK-NNN` (NNN >= 001, zero-pad 3 chữ số)."""

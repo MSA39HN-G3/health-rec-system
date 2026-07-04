@@ -50,6 +50,25 @@ class BaseConfig:
     # Bỏ qua không ghi log truy cập cho các path này (tách bằng dấu phẩy).
     LOG_SKIP_PATHS = os.getenv("LOG_SKIP_PATHS", "/health")
 
+    # --- Cloudflare R2 (object storage, S3-compatible) ---
+    R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID", "")
+    R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID", "")
+    R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY", "")
+    R2_BUCKET = os.getenv("R2_BUCKET", "")
+    # Custom domain cho bucket (optional). Để trống = dùng endpoint R2 mặc định.
+    R2_PUBLIC_HOST = os.getenv("R2_PUBLIC_HOST", "").strip()
+    R2_PRESIGN_PUT_TTL = int(os.getenv("R2_PRESIGN_PUT_TTL", "600"))
+    R2_PRESIGN_GET_TTL = int(os.getenv("R2_PRESIGN_GET_TTL", "3600"))
+    R2_MAX_UPLOAD_BYTES = int(os.getenv("R2_MAX_UPLOAD_BYTES", "15728640"))
+    R2_ALLOWED_CONTENT_TYPES = tuple(
+        ct.strip().lower()
+        for ct in os.getenv(
+            "R2_ALLOWED_CONTENT_TYPES",
+            "image/jpeg,image/png,image/webp,application/pdf",
+        ).split(",")
+        if ct.strip()
+    )
+
 
 class DevelopmentConfig(BaseConfig):
     DEBUG = True

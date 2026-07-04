@@ -26,6 +26,11 @@
     "department_not_found": "Không tìm thấy khoa.",
     "head_doctor_not_found": "Không tìm thấy trưởng khoa được chọn.",
     "head_doctor_not_doctor": "Người dùng được chọn phải có role bác sĩ.",
+    "head_required_when_active": "Phải chọn trưởng khoa khi bật hoạt động khoa.",
+    "upload_kind_unsupported": "Loại upload không được hỗ trợ.",
+    "upload_content_type_unsupported": "Định dạng tệp không được phép.",
+    "upload_too_large": "Tệp vượt quá kích thước cho phép.",
+    "upload_object_not_found": "Không tìm thấy object trong kho lưu trữ.",
     "symptom_category_not_found": "Không tìm thấy nhóm triệu chứng.",
     "symptom_not_found": "Không tìm thấy triệu chứng.",
     "symptom_code_exists": "Mã triệu chứng này đã tồn tại."
@@ -47,6 +52,8 @@
     "symptom_category_deleted": "Xóa nhóm triệu chứng thành công.",
     "symptom_created": "Tạo triệu chứng thành công.",
     "symptom_updated": "Cập nhật triệu chứng thành công.",
-    "symptom_deactivated": "Vô hiệu hóa triệu chứng thành công."
+    "symptom_deactivated": "Vô hiệu hóa triệu chứng thành công.",
+    "upload_presigned": "Sinh URL upload thành công.",
+    "upload_confirmed": "Xác nhận upload thành công."
   }
 }
