@@ -94,6 +94,7 @@ def delete_category(category_id):
         "size": Field(int, required=False, default=20, minimum=1, maximum=100),
         "category_id": Field(int, required=False),
         "is_active": Field(bool, required=False),
+        "department_id": Field(int, required=False, minimum=1),
     }
 )
 def list_symptoms():
@@ -103,6 +104,7 @@ def list_symptoms():
         size=q["size"],
         category_id=q.get("category_id"),
         is_active=q.get("is_active"),
+        department_id=q.get("department_id"),
     )
     return paginated_response(
         [s.to_dict() for s in items],
