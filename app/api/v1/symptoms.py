@@ -93,7 +93,7 @@ def delete_category(category_id):
         "page": Field(int, required=False, default=1, minimum=1),
         "size": Field(int, required=False, default=20, minimum=1, maximum=100),
         "category_id": Field(int, required=False),
-        "is_active": Field(bool, required=False),
+        "is_active": Field(bool, required=False, default=True),
         "department_id": Field(int, required=False, minimum=1),
     }
 )
