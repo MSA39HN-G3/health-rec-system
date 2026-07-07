@@ -1,4 +1,4 @@
-"""Unit test cho PatientService."""
+"""Unit tests for PatientService — covers all business logic methods."""
 from __future__ import annotations
 
 from unittest.mock import MagicMock

@@ -23,7 +23,13 @@ _record_service = HealthRecordService()
 @bp.get("/count")
 @require_permission(Permission.USER_READ)
 def count_patients():
-    """Lấy số lượng bệnh nhân tổng cộng."""
+    """Get total count of all patients.
+    
+    Requires: USER_READ permission.
+    
+    Returns:
+        JSON response with total patient count.
+    """
     total = _patient_service.count_patients()
     return success_response({"total": total})
 
