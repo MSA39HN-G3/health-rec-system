@@ -15,20 +15,17 @@ def client(app):
 class TestCountPatientsEndpoint:
     """Test GET /api/v1/patients/count endpoint."""
 
-    def test_count_endpoint_returns_total(self, client):
-        """Test count endpoint returns total patient count."""
-        with patch('app.middleware.require_permission') as mock_perm, \
-             patch('app.api.v1.patients._patient_service.count_patients') as mock_service:
-            # Bypass authentication check
-            mock_perm.return_value = lambda f: f
-            mock_service.return_value = 42
-            
-            response = client.get('/api/v1/patients/count')
-            
-            assert response.status_code == 200
-            data = response.get_json()
-            assert data['success'] is True
-            assert data['data']['total'] == 42
+   def test_count_endpoint_returns_total(self, client, mock_auth):
+    """Test count endpoint returns total patient count."""
+    with patch('app.api.v1.patients._patient_service.count_patients') as mock_service:
+        mock_service.return_value = 42
+
+        response = client.get('/api/v1/patients/count')
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert data['data']['total'] == 42
 
     def test_count_endpoint_zero_patients(self, client):
         """Test count endpoint when no patients exist."""
