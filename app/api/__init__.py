@@ -5,6 +5,7 @@ def register_blueprints(app):
     from .v1.doctors import bp as doctors_v1_bp
     from .v1.symptoms import bp as symptoms_v1_bp
     from .v1.uploads import bp as uploads_v1_bp
+    from .v1.patients import bp as patients_v1_bp
 
     app.register_blueprint(auth_v1_bp)
     app.register_blueprint(admin_v1_bp)
@@ -12,3 +13,4 @@ def register_blueprints(app):
     app.register_blueprint(doctors_v1_bp)
     app.register_blueprint(symptoms_v1_bp)
     app.register_blueprint(uploads_v1_bp)
+    app.register_blueprint(patients_v1_bp)

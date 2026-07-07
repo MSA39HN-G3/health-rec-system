@@ -33,7 +33,12 @@
     "upload_object_not_found": "Không tìm thấy object trong kho lưu trữ.",
     "symptom_category_not_found": "Không tìm thấy nhóm triệu chứng.",
     "symptom_not_found": "Không tìm thấy triệu chứng.",
-    "symptom_code_exists": "Mã triệu chứng này đã tồn tại."
+    "symptom_code_exists": "Mã triệu chứng này đã tồn tại.",
+    "patient_not_found": "Không tìm thấy bệnh nhân.",
+    "health_record_not_found": "Không tìm thấy hồ sơ sức khỏe.",
+    "doctor_not_found": "Không tìm thấy bác sĩ.",
+    "invalid_date_format": "Định dạng ngày không hợp lệ. Vui lòng dùng YYYY-MM-DD.",
+    "invalid_datetime_format": "Định dạng ngày giờ không hợp lệ. Vui lòng dùng ISO 8601."
   },
   "messages": {
     "login_success": "Đăng nhập thành công.",
