@@ -15,40 +15,36 @@ def client(app):
 class TestCountPatientsEndpoint:
     """Test GET /api/v1/patients/count endpoint."""
 
-   def test_count_endpoint_returns_total(self, client, mock_auth):
-    """Test count endpoint returns total patient count."""
-    with patch('app.api.v1.patients._patient_service.count_patients') as mock_service:
-        mock_service.return_value = 42
+    def test_count_endpoint_returns_total(self, client, mock_auth):
+        """Test count endpoint returns total patient count."""
+        with patch('app.api.v1.patients._patient_service.count_patients') as mock_service:
+            mock_service.return_value = 42
 
-        response = client.get('/api/v1/patients/count')
-
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data['success'] is True
-        assert data['data']['total'] == 42
-
-    def test_count_endpoint_zero_patients(self, client):
-        """Test count endpoint when no patients exist."""
-        with patch('app.middleware.require_permission') as mock_perm, \
-             patch('app.api.v1.patients._patient_service.count_patients') as mock_service:
-            mock_perm.return_value = lambda f: f
-            mock_service.return_value = 0
-            
             response = client.get('/api/v1/patients/count')
-            
+
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data['success'] is True
+            assert data['data']['total'] == 42
+
+    def test_count_endpoint_zero_patients(self, client, mock_auth):
+        """Test count endpoint when no patients exist."""
+        with patch('app.api.v1.patients._patient_service.count_patients') as mock_service:
+            mock_service.return_value = 0
+
+            response = client.get('/api/v1/patients/count')
+
             assert response.status_code == 200
             data = response.get_json()
             assert data['data']['total'] == 0
 
-    def test_count_endpoint_large_number(self, client):
+    def test_count_endpoint_large_number(self, client, mock_auth):
         """Test count endpoint with large patient count."""
-        with patch('app.middleware.require_permission') as mock_perm, \
-             patch('app.api.v1.patients._patient_service.count_patients') as mock_service:
-            mock_perm.return_value = lambda f: f
+        with patch('app.api.v1.patients._patient_service.count_patients') as mock_service:
             mock_service.return_value = 99999
-            
+
             response = client.get('/api/v1/patients/count')
-            
+
             assert response.status_code == 200
             data = response.get_json()
             assert data['data']['total'] == 99999
@@ -57,20 +53,18 @@ class TestCountPatientsEndpoint:
 class TestListPatientsEndpoint:
     """Test GET /api/v1/patients endpoint."""
 
-    def test_list_endpoint_pagination(self, client):
+    def test_list_endpoint_pagination(self, client, mock_auth):
         """Test list endpoint supports pagination."""
-        with patch('app.middleware.require_permission') as mock_perm, \
-             patch('app.api.v1.patients._patient_service.list_patients') as mock_service:
-            mock_perm.return_value = lambda f: f
+        with patch('app.api.v1.patients._patient_service.list_patients') as mock_service:
             patient1 = MagicMock()
             patient1.to_dict.return_value = {'id': 1, 'full_name': 'Patient 1'}
             patient2 = MagicMock()
             patient2.to_dict.return_value = {'id': 2, 'full_name': 'Patient 2'}
-            
+
             mock_service.return_value = ([patient1, patient2], 100)
-            
+
             response = client.get('/api/v1/patients?page=1&size=20')
-            
+
             assert response.status_code == 200
             data = response.get_json()
             assert data['success'] is True
@@ -82,9 +76,9 @@ class TestListPatientsEndpoint:
         """Test list endpoint with second page."""
         with patch('app.api.v1.patients._patient_service.list_patients') as mock_service:
             mock_service.return_value = ([], 100)
-            
+
             response = client.get('/api/v1/patients?page=2&size=20')
-            
+
             if response.status_code == 200:
                 mock_service.assert_called_with(2, 20)
 
@@ -92,9 +86,9 @@ class TestListPatientsEndpoint:
         """Test list endpoint uses default pagination (page=1, size=20)."""
         with patch('app.api.v1.patients._patient_service.list_patients') as mock_service:
             mock_service.return_value = ([], 0)
-            
+
             response = client.get('/api/v1/patients')
-            
+
             if response.status_code == 200:
                 mock_service.assert_called_with(1, 20)
 
@@ -108,12 +102,12 @@ class TestCreatePatientEndpoint:
             new_patient = MagicMock()
             new_patient.to_dict.return_value = {'id': 1, 'full_name': 'New Patient'}
             mock_service.return_value = new_patient
-            
+
             response = client.post(
                 '/api/v1/patients',
                 json={'full_name': 'New Patient'},
             )
-            
+
             if response.status_code == 201:
                 data = response.get_json()
                 assert data['success'] is True
@@ -133,7 +127,7 @@ class TestCreatePatientEndpoint:
                 'address': '123 Street',
             }
             mock_service.return_value = new_patient
-            
+
             response = client.post(
                 '/api/v1/patients',
                 json={
@@ -145,7 +139,7 @@ class TestCreatePatientEndpoint:
                     'address': '123 Street',
                 },
             )
-            
+
             if response.status_code == 201:
                 mock_service.assert_called()
 
@@ -159,9 +153,9 @@ class TestGetPatientEndpoint:
             patient = MagicMock()
             patient.to_dict.return_value = {'id': 1, 'full_name': 'Patient'}
             mock_service.return_value = patient
-            
+
             response = client.get('/api/v1/patients/1')
-            
+
             if response.status_code == 200:
                 data = response.get_json()
                 assert data['success'] is True
@@ -177,12 +171,12 @@ class TestUpdatePatientEndpoint:
             updated_patient = MagicMock()
             updated_patient.to_dict.return_value = {'id': 1, 'full_name': 'Updated'}
             mock_service.return_value = updated_patient
-            
+
             response = client.patch(
                 '/api/v1/patients/1',
                 json={'full_name': 'Updated'},
             )
-            
+
             if response.status_code == 200:
                 data = response.get_json()
                 assert data['success'] is True
