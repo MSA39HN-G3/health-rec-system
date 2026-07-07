@@ -78,8 +78,8 @@ class TestListPatientsEndpoint:
             data = response.get_json()
             assert data['success'] is True
             assert data['pagination']['page'] == 1
-                assert data['pagination']['size'] == 20
-                assert data['pagination']['total'] == 100
+            assert data['pagination']['size'] == 20
+            assert data['pagination']['total'] == 100
 
     def test_list_endpoint_second_page(self, client, mock_auth):
         """Test list endpoint with second page."""
