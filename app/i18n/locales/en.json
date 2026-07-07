@@ -33,7 +33,12 @@
     "upload_object_not_found": "Object was not found in storage.",
     "symptom_category_not_found": "Symptom category not found.",
     "symptom_not_found": "Symptom not found.",
-    "symptom_code_exists": "A symptom with this code already exists."
+    "symptom_code_exists": "A symptom with this code already exists.",
+    "patient_not_found": "Patient not found.",
+    "health_record_not_found": "Health record not found.",
+    "doctor_not_found": "Doctor not found.",
+    "invalid_date_format": "Date format is invalid. Use YYYY-MM-DD.",
+    "invalid_datetime_format": "Datetime format is invalid. Use ISO 8601."
   },
   "messages": {
     "login_success": "Signed in successfully.",

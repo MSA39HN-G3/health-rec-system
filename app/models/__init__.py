@@ -7,6 +7,8 @@ from .symptom import Symptom
 from .symptom_department_map import SymptomDepartmentMap
 from .token_blacklist import TokenBlacklist
 from .user import User
+from .patient import Patient
+from .health_record import HealthRecord
 
 __all__ = [
     "User",
@@ -21,4 +23,6 @@ __all__ = [
     "SymptomCategory",
     "Symptom",
     "SymptomDepartmentMap",
+    "Patient",
+    "HealthRecord",
 ]
