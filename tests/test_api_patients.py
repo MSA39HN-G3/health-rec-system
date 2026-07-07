@@ -12,59 +12,59 @@ def client(app):
     return app.test_client()
 
 
-@pytest.fixture
-def mock_auth():
-    """Mock authentication for API tests."""
-    with patch('app.api.v1.patients.require_permission') as mock_perm:
-        mock_perm.return_value = lambda f: f
-        yield mock_perm
-
-
 class TestCountPatientsEndpoint:
     """Test GET /api/v1/patients/count endpoint."""
 
-    def test_count_endpoint_returns_total(self, client, mock_auth):
+    def test_count_endpoint_returns_total(self, client):
         """Test count endpoint returns total patient count."""
-        with patch('app.api.v1.patients._patient_service.count_patients') as mock_service:
+        with patch('app.middleware.require_permission') as mock_perm, \
+             patch('app.api.v1.patients._patient_service.count_patients') as mock_service:
+            # Bypass authentication check
+            mock_perm.return_value = lambda f: f
             mock_service.return_value = 42
             
             response = client.get('/api/v1/patients/count')
             
-            assert response.status_code in [200, 404]  # 404 if endpoint not registered
-            if response.status_code == 200:
-                data = response.get_json()
-                assert data['success'] is True
-                assert data['data']['total'] == 42
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data['success'] is True
+            assert data['data']['total'] == 42
 
-    def test_count_endpoint_zero_patients(self, client, mock_auth):
+    def test_count_endpoint_zero_patients(self, client):
         """Test count endpoint when no patients exist."""
-        with patch('app.api.v1.patients._patient_service.count_patients') as mock_service:
+        with patch('app.middleware.require_permission') as mock_perm, \
+             patch('app.api.v1.patients._patient_service.count_patients') as mock_service:
+            mock_perm.return_value = lambda f: f
             mock_service.return_value = 0
             
             response = client.get('/api/v1/patients/count')
             
-            if response.status_code == 200:
-                data = response.get_json()
-                assert data['data']['total'] == 0
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data['data']['total'] == 0
 
-    def test_count_endpoint_large_number(self, client, mock_auth):
+    def test_count_endpoint_large_number(self, client):
         """Test count endpoint with large patient count."""
-        with patch('app.api.v1.patients._patient_service.count_patients') as mock_service:
+        with patch('app.middleware.require_permission') as mock_perm, \
+             patch('app.api.v1.patients._patient_service.count_patients') as mock_service:
+            mock_perm.return_value = lambda f: f
             mock_service.return_value = 99999
             
             response = client.get('/api/v1/patients/count')
             
-            if response.status_code == 200:
-                data = response.get_json()
-                assert data['data']['total'] == 99999
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data['data']['total'] == 99999
 
 
 class TestListPatientsEndpoint:
     """Test GET /api/v1/patients endpoint."""
 
-    def test_list_endpoint_pagination(self, client, mock_auth):
+    def test_list_endpoint_pagination(self, client):
         """Test list endpoint supports pagination."""
-        with patch('app.api.v1.patients._patient_service.list_patients') as mock_service:
+        with patch('app.middleware.require_permission') as mock_perm, \
+             patch('app.api.v1.patients._patient_service.list_patients') as mock_service:
+            mock_perm.return_value = lambda f: f
             patient1 = MagicMock()
             patient1.to_dict.return_value = {'id': 1, 'full_name': 'Patient 1'}
             patient2 = MagicMock()
@@ -74,10 +74,10 @@ class TestListPatientsEndpoint:
             
             response = client.get('/api/v1/patients?page=1&size=20')
             
-            if response.status_code == 200:
-                data = response.get_json()
-                assert data['success'] is True
-                assert data['pagination']['page'] == 1
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data['success'] is True
+            assert data['pagination']['page'] == 1
                 assert data['pagination']['size'] == 20
                 assert data['pagination']['total'] == 100
 
