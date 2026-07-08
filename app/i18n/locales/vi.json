@@ -38,7 +38,8 @@
     "health_record_not_found": "Không tìm thấy hồ sơ sức khỏe.",
     "doctor_not_found": "Không tìm thấy bác sĩ.",
     "invalid_date_format": "Định dạng ngày không hợp lệ. Vui lòng dùng YYYY-MM-DD.",
-    "invalid_datetime_format": "Định dạng ngày giờ không hợp lệ. Vui lòng dùng ISO 8601."
+    "invalid_datetime_format": "Định dạng ngày giờ không hợp lệ. Vui lòng dùng ISO 8601.",
+    "empty_symptoms": "Danh sách triệu chứng và mô tả không được để trống."
   },
   "messages": {
     "login_success": "Đăng nhập thành công.",
@@ -59,6 +60,12 @@
     "symptom_updated": "Cập nhật triệu chứng thành công.",
     "symptom_deactivated": "Vô hiệu hóa triệu chứng thành công.",
     "upload_presigned": "Sinh URL upload thành công.",
-    "upload_confirmed": "Xác nhận upload thành công."
+    "upload_confirmed": "Xác nhận upload thành công.",
+    "booking_session_created": "Khởi tạo phiên đặt khám thành công.",
+    "booking_session_patient_updated": "Cập nhật thông tin bệnh nhân thành công.",
+    "booking_session_ai_recommended": "Phân tích triệu chứng và gợi ý chuyên khoa thành công.",
+    "booking_session_department_selected": "Chọn chuyên khoa thành công.",
+    "booking_session_booked": "Đặt lịch khám thành công."
   }
 }
+

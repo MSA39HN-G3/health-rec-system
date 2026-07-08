@@ -38,7 +38,8 @@
     "health_record_not_found": "Health record not found.",
     "doctor_not_found": "Doctor not found.",
     "invalid_date_format": "Date format is invalid. Use YYYY-MM-DD.",
-    "invalid_datetime_format": "Datetime format is invalid. Use ISO 8601."
+    "invalid_datetime_format": "Datetime format is invalid. Use ISO 8601.",
+    "empty_symptoms": "Symptom list and description cannot be empty."
   },
   "messages": {
     "login_success": "Signed in successfully.",
@@ -59,6 +60,12 @@
     "symptom_updated": "Symptom updated successfully.",
     "symptom_deactivated": "Symptom deactivated successfully.",
     "upload_presigned": "Upload URL generated.",
-    "upload_confirmed": "Upload confirmed."
+    "upload_confirmed": "Upload confirmed.",
+    "booking_session_created": "Booking session initialized successfully.",
+    "booking_session_patient_updated": "Patient information updated successfully.",
+    "booking_session_ai_recommended": "Symptoms analyzed and specialties suggested successfully.",
+    "booking_session_department_selected": "Department selected successfully.",
+    "booking_session_booked": "Appointment booked successfully."
   }
 }
+

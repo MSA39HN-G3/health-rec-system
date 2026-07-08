@@ -83,6 +83,48 @@ def register_cli(app):
                 created += 1
         click.echo(f"Đã seed departments: {created} khoa mới.")
 
+    @app.cli.command("seed-symptoms")
+    def seed_symptoms_command():
+        """Tạo danh mục & triệu chứng mẫu để test nhanh."""
+        from .models.symptom_category import SymptomCategory
+        from .models.symptom import Symptom
+
+        data = {
+            "Hô hấp": ["Ho", "Khó thở", "Đau ngực", "Sổ mũi"],
+            "Tiêu hóa": ["Đau bụng", "Buồn nôn", "Tiêu chảy", "Táo bón"],
+            "Tim mạch": ["Đánh trống ngực", "Đau thắt ngực", "Mệt mỏi"],
+            "Thần kinh": ["Đau đầu âm ỉ", "Chóng mặt", "Mất ngủ"],
+            "Cơ xương khớp": ["Đau mỏi vai gáy", "Đau khớp gối", "Tê bì tay chân"],
+        }
+
+        created_cats = 0
+        created_syms = 0
+
+        for cat_name, sym_names in data.items():
+            cat = SymptomCategory.query.filter_by(name=cat_name).first()
+            if not cat:
+                cat = SymptomCategory(name=cat_name)
+                db.session.add(cat)
+                db.session.flush()
+                created_cats += 1
+
+            for name in sym_names:
+                code = "SYM_" + cat_name[:3].upper() + "_" + name.replace(" ", "_").upper()
+                sym = Symptom.query.filter_by(name=name).first()
+                if not sym:
+                    sym = Symptom(
+                        code=code,
+                        name=name,
+                        category_id=cat.id,
+                        synonyms=[name.lower()]
+                    )
+                    db.session.add(sym)
+                    created_syms += 1
+
+        db.session.commit()
+        click.echo(f"Đã seed symptoms: {created_cats} danh mục mới, {created_syms} triệu chứng mới.")
+
+
     @app.cli.command("grant-role")
     @click.argument("email")
     @click.argument("role")
