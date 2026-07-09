@@ -147,6 +147,15 @@ class BookingSessionService:
         if not session:
             raise NotFoundException("errors.booking_session_not_found")
 
+        # Check if recommendations already exist for this session to optimize and handle concurrent requests
+        existing_recs = AIRecommendation.query.filter_by(session_id=session.id).order_by(AIRecommendation.rank).all()
+        if existing_recs:
+            if session.status not in ["AI_RECOMMENDED", "DEPARTMENT_SELECTED", "DOCTOR_SELECTED", "BOOKED"]:
+                session.status = "AI_RECOMMENDED"
+                session.current_step = 3
+                db.session.commit()
+            return existing_recs
+
         symptom_names = [s.name for s in session.symptoms]
         free_text = session.free_text_symptom
         trieu_chung = ", ".join(symptom_names)
@@ -181,13 +190,17 @@ class BookingSessionService:
                             return dept
                     return None
 
+                seen_dept_ids = set()
                 rank = 1
-                for item in ai_recs[:3]:
+                for item in ai_recs:
+                    if len(recommendations) >= 3:
+                        break
                     name = item.get("Chuyen_Khoa") or item.get("specialty_name") or item.get("name")
                     if not name:
                         continue
                     dept = map_dept_name(name)
-                    if dept:
+                    if dept and dept.id not in seen_dept_ids:
+                        seen_dept_ids.add(dept.id)
                         score = item.get("Do_Chinh_Xac") or item.get("confidence_score") or item.get("score") or 0.5
                         reasoning = item.get("reasoning") or f"Gợi ý bởi mô hình AI cho chuyên khoa {dept.name}."
                         rec = AIRecommendation(
@@ -211,10 +224,16 @@ class BookingSessionService:
             symptom_service = SymptomService()
             rule_recs = symptom_service.get_recommendations(symptom_names)
 
+            seen_dept_ids = set()
             rank = 1
             recommendations = []
-            for item in rule_recs[:3]:
+            for item in rule_recs:
+                if len(recommendations) >= 3:
+                    break
                 dept_id = item["specialty"]["id"]
+                if dept_id in seen_dept_ids:
+                    continue
+                seen_dept_ids.add(dept_id)
                 score = item["score"]
                 explanation = item["explanation"]
 
@@ -243,6 +262,10 @@ class BookingSessionService:
             return recommendations
         except Exception as db_err:
             db.session.rollback()
+            # If there's a unique violation/integrity error, check if a concurrent request succeeded
+            existing_recs = AIRecommendation.query.filter_by(session_id=session.id).order_by(AIRecommendation.rank).all()
+            if existing_recs:
+                return existing_recs
             raise db_err
 
     def select_department(self, session_id, department_id):
@@ -322,28 +345,42 @@ class BookingSessionService:
             valid_schedules.append(ds)
 
         results = []
+        from sqlalchemy import text
+        query = """
+            SELECT 
+                gs.slot_start::time AS start_time,
+                (gs.slot_start + make_interval(mins => ds.slot_duration_minutes))::time AS end_time,
+                (COALESCE(a.booked_count, 0) < ds.max_patients_per_slot) AS available
+            FROM doctor_schedules ds
+            CROSS JOIN LATERAL generate_series(
+                :date_val + ds.start_time,
+                :date_val + ds.end_time - make_interval(mins => ds.slot_duration_minutes),
+                make_interval(mins => ds.slot_duration_minutes)
+            ) AS gs(slot_start)
+            LEFT JOIN (
+                SELECT doctor_id, appointment_date, start_time, COUNT(id) AS booked_count
+                FROM appointments
+                WHERE appointment_date = :date_val
+                  AND status NOT IN ('cancelled', 'no_show')
+                GROUP BY doctor_id, appointment_date, start_time
+            ) a ON a.doctor_id = ds.doctor_id AND a.start_time = gs.slot_start::time
+            WHERE ds.id = :schedule_id
+            ORDER BY start_time;
+        """
+
         for ds in valid_schedules:
-            duration = ds.slot_duration_minutes
-            curr_dt = datetime.combine(date_obj, ds.start_time)
-            end_dt = datetime.combine(date_obj, ds.end_time)
+            slots_rows = db.session.execute(
+                text(query),
+                {"date_val": date_obj, "schedule_id": ds.id}
+            ).fetchall()
 
             slots = []
-            while curr_dt + timedelta(minutes=duration) <= end_dt:
-                slot_start = curr_dt.time()
-                slot_end = (curr_dt + timedelta(minutes=duration)).time()
-
-                booked_count = Appointment.query.filter_by(
-                    doctor_id=ds.doctor_id,
-                    appointment_date=date_obj,
-                    start_time=slot_start
-                ).filter(Appointment.status.notin_(['cancelled', 'no_show'])).count()
-
+            for row in slots_rows:
                 slots.append({
-                    "start_time": slot_start.strftime("%H:%M"),
-                    "end_time": slot_end.strftime("%H:%M"),
-                    "available": booked_count < ds.max_patients_per_slot
+                    "start_time": row.start_time.strftime("%H:%M"),
+                    "end_time": row.end_time.strftime("%H:%M"),
+                    "available": bool(row.available)
                 })
-                curr_dt += timedelta(minutes=duration)
 
             results.append({
                 "room": {"id": ds.room.id, "name": ds.room.name, "code": ds.room.code},
