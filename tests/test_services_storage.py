@@ -30,6 +30,16 @@ class TestBuildObjectKey:
             "department_avatar", "application/pdf"
         ).endswith(".pdf")
 
+    def test_doctor_avatar_uses_avatar_subprefix(self):
+        key = storage.build_object_key("doctor_avatar", "image/png")
+        assert key.startswith("doctor/avatar/")
+        assert key.endswith(".png")
+
+    def test_doctor_document_uses_document_subprefix(self):
+        key = storage.build_object_key("doctor_document", "application/pdf")
+        assert key.startswith("doctor/document/")
+        assert key.endswith(".pdf")
+
     def test_unknown_kind_raises(self):
         with pytest.raises(BadRequestException):
             storage.build_object_key("unknown_kind", "image/png")
@@ -96,6 +106,8 @@ class TestIsValidObjectKey:
         "department/abc.png",
         "department/abc-def-123.jpg",
         "department/abc.pdf",
+        "doctor/avatar/abc.png",
+        "doctor/document/abc.pdf",
     ])
     def test_valid(self, key):
         assert storage.is_valid_object_key(key) is True
@@ -105,6 +117,8 @@ class TestIsValidObjectKey:
         "x",
         "/leading-slash",
         "unknown/abc.png",   # prefix không nằm trong _KIND_PREFIXES.values()
+        "doctor/abc.png",    # thiếu sub-prefix
+        "doctor/wrong/abc.png",  # sub-prefix sai
         "department",        # thiếu phần tên
         "department/",       # name rỗng
         "abc\x00null.png",   # NUL

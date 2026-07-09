@@ -16,8 +16,10 @@ class Role:
     ADMIN = "admin"
     DEPARTMENT_HEAD = "department_head"
     DOCTOR = "doctor"
+    PATIENT = "patient"
+    STAFF = "staff"  # nhân viên (lễ tân, điều dưỡng, ...) — tạo đánh giá hộ BN
 
-    ALL = (ADMIN, DEPARTMENT_HEAD, DOCTOR)
+    ALL = (ADMIN, DEPARTMENT_HEAD, DOCTOR, PATIENT, STAFF)
 
 
 class Permission:
@@ -28,6 +30,9 @@ class Permission:
     RECORD_WRITE = "record:write"    # tạo/sửa hồ sơ
     DEPARTMENT_MANAGE = "department:manage"  # quản lý khoa
     SYMPTOM_MANAGE = "symptom:manage"        # quản lý triệu chứng & ánh xạ
+    RATING_READ = "rating:read"       # xem đánh giá
+    RATING_WRITE = "rating:write"     # tạo/sửa đánh giá
+    RATING_MANAGE = "rating:manage"   # xóa đánh giá (admin)
 
     ALL = (
         USER_READ,
@@ -37,6 +42,9 @@ class Permission:
         RECORD_WRITE,
         DEPARTMENT_MANAGE,
         SYMPTOM_MANAGE,
+        RATING_READ,
+        RATING_WRITE,
+        RATING_MANAGE,
     )
 
 
@@ -49,6 +57,9 @@ PERMISSION_DESCRIPTIONS = {
     Permission.RECORD_WRITE: "Tạo/sửa hồ sơ sức khỏe",
     Permission.DEPARTMENT_MANAGE: "Quản lý khoa",
     Permission.SYMPTOM_MANAGE: "Quản lý triệu chứng và ánh xạ chuyên khoa",
+    Permission.RATING_READ: "Xem đánh giá bác sĩ",
+    Permission.RATING_WRITE: "Tạo và sửa đánh giá bác sĩ",
+    Permission.RATING_MANAGE: "Quản lý (xóa) đánh giá bác sĩ",
 }
 
 # Role -> danh sách permission mặc định khi seed.
@@ -59,14 +70,23 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.ROLE_MANAGE,
         Permission.DEPARTMENT_MANAGE,
         Permission.SYMPTOM_MANAGE,
+        Permission.RATING_READ,
+        Permission.RATING_WRITE,
+        Permission.RATING_MANAGE,
     ],
     Role.DEPARTMENT_HEAD: [
         Permission.RECORD_READ,
         Permission.RECORD_WRITE,
         Permission.DEPARTMENT_MANAGE,
+        Permission.RATING_READ,
     ],
     Role.DOCTOR: [
         Permission.RECORD_READ,
         Permission.RECORD_WRITE,
+        Permission.RATING_READ,
+    ],
+    Role.PATIENT: [
+        Permission.RATING_READ,
+        Permission.RATING_WRITE,
     ],
 }
