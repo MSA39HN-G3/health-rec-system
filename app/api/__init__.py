@@ -6,6 +6,8 @@ def register_blueprints(app):
     from .v1.symptoms import bp as symptoms_v1_bp
     from .v1.uploads import bp as uploads_v1_bp
     from .v1.patients import bp as patients_v1_bp
+    from .v1.recommendations import bp as recommendations_v1_bp
+    from .v1.booking_sessions import bp as booking_sessions_v1_bp
 
     app.register_blueprint(auth_v1_bp)
     app.register_blueprint(admin_v1_bp)
@@ -14,3 +16,6 @@ def register_blueprints(app):
     app.register_blueprint(symptoms_v1_bp)
     app.register_blueprint(uploads_v1_bp)
     app.register_blueprint(patients_v1_bp)
+    app.register_blueprint(recommendations_v1_bp)
+    app.register_blueprint(booking_sessions_v1_bp)
+

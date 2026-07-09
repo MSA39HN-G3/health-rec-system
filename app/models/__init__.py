@@ -9,6 +9,12 @@ from .token_blacklist import TokenBlacklist
 from .user import User
 from .patient import Patient
 from .health_record import HealthRecord
+from .recommendation import Recommendation
+from .room import Room
+from .doctor_schedule import DoctorSchedule
+from .booking_session import BookingSession, BookingSessionSymptom
+from .ai_recommendation import AIRecommendation
+from .appointment import Appointment, AppointmentStatusHistory
 
 __all__ = [
     "User",
@@ -25,4 +31,13 @@ __all__ = [
     "SymptomDepartmentMap",
     "Patient",
     "HealthRecord",
+    "Recommendation",
+    "Room",
+    "DoctorSchedule",
+    "BookingSession",
+    "BookingSessionSymptom",
+    "AIRecommendation",
+    "Appointment",
+    "AppointmentStatusHistory",
 ]
+

@@ -61,6 +61,14 @@ class DepartmentRepository:
         items = query.offset((page - 1) * size).limit(size).all()
         return items, total
 
+    def find_all_active(self):
+        """Lấy tất cả các khoa đang hoạt động."""
+        return Department.query.filter_by(is_active=True).all()
+
+    def find_all(self):
+        """Lấy tất cả các khoa trong hệ thống."""
+        return Department.query.all()
+
     def add(self, department):
         db.session.add(department)
         return department

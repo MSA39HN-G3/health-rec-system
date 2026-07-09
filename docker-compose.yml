@@ -1,0 +1,9 @@
+services:
+  health-rec-system:
+    image: dungna/health-rec-system:prod
+    restart: always
+    env_file: .env
+    volumes:
+      - ./file:/app/file
+    ports:
+      - 5000:5000
