@@ -8,7 +8,7 @@ from .symptom_department_map import SymptomDepartmentMap
 from .token_blacklist import TokenBlacklist
 from .user import User
 from .patient import Patient
-from .health_record import HealthRecord
+from .health_record import HealthRecord, HealthRecordSymptom
 from .recommendation import Recommendation
 from .room import Room
 from .doctor_schedule import DoctorSchedule
@@ -34,6 +34,7 @@ __all__ = [
     "SymptomDepartmentMap",
     "Patient",
     "HealthRecord",
+    "HealthRecordSymptom",
     "Recommendation",
     "Room",
     "DoctorSchedule",

@@ -153,7 +153,7 @@ curl -X GET "http://localhost:5000/api/v1/patients/1/records?page=1&size=20" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-### 3.2 Tạo hồ sơ sức khỏe
+### 3.2 Tạo hồ sơ sức khỏe (Kèm theo triệu chứng)
 ```bash
 curl -X POST http://localhost:5000/api/v1/patients/1/records \
   -H "Authorization: Bearer $TOKEN" \
@@ -165,7 +165,19 @@ curl -X POST http://localhost:5000/api/v1/patients/1/records \
     "department_id": 2,
     "notes": "Tình trạng bệnh nhân ổn định",
     "diagnosis": "Cảm cúm",
-    "treatment": "Dùng thuốc hạ sốt và antibiotics"
+    "treatment": "Dùng thuốc hạ sốt và antibiotics",
+    "symptom_ids": ["1", "2"]
+  }'
+```
+
+### 3.3 Cập nhật hồ sơ sức khỏe
+```bash
+curl -X PATCH http://localhost:5000/api/v1/patients/1/records/1 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Khám tổng quát cập nhật",
+    "symptom_ids": ["2", "3"]
   }'
 ```
 
