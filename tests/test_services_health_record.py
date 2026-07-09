@@ -156,6 +156,28 @@ class TestCreateRecord:
         svc.create_record(patient_id=1, title="x", visit_date=None)
         hr.commit.assert_called_once()
 
+    def test_create_with_symptoms_success(self):
+        svc, hr, pr, _, _ = _svc()
+        pr.find_by_id.return_value = MagicMock()
+        mock_symptom1 = MagicMock()
+        mock_symptom2 = MagicMock()
+        svc.symptoms = MagicMock()
+        svc.symptoms.find_by_id.side_effect = lambda sid: mock_symptom1 if sid == 1 else (mock_symptom2 if sid == 2 else None)
+        
+        result = svc.create_record(patient_id=1, title="Khám triệu chứng", symptom_ids=[1, 2])
+        hr.add.assert_called_once()
+        hr.commit.assert_called_once()
+        assert result.symptoms == [mock_symptom1, mock_symptom2]
+
+    def test_create_with_missing_symptom_raises(self):
+        svc, hr, pr, _, _ = _svc()
+        pr.find_by_id.return_value = MagicMock()
+        svc.symptoms = MagicMock()
+        svc.symptoms.find_by_id.return_value = None
+        
+        with pytest.raises(NotFoundException):
+            svc.create_record(patient_id=1, title="Khám triệu chứng", symptom_ids=[999])
+
 
 # ==========================================================================
 # update_record
@@ -237,3 +259,21 @@ class TestUpdateRecord:
         svc, hr, *_ = self._setup_existing()
         svc.update_record(patient_id=1, record_id=2)
         hr.commit.assert_called_once()
+
+    def test_update_with_symptoms_success(self):
+        svc, hr, _, _, _, existing = self._setup_existing()
+        mock_symptom1 = MagicMock()
+        svc.symptoms = MagicMock()
+        svc.symptoms.find_by_id.return_value = mock_symptom1
+        
+        svc.update_record(patient_id=1, record_id=2, symptom_ids=[10])
+        assert existing.symptoms == [mock_symptom1]
+        hr.commit.assert_called_once()
+
+    def test_update_with_missing_symptom_raises(self):
+        svc, hr, _, _, _, existing = self._setup_existing()
+        svc.symptoms = MagicMock()
+        svc.symptoms.find_by_id.return_value = None
+        
+        with pytest.raises(NotFoundException):
+            svc.update_record(patient_id=1, record_id=2, symptom_ids=[999])

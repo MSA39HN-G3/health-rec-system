@@ -5,6 +5,7 @@ from ..models.health_record import HealthRecord
 from ..repositories.department_repository import DepartmentRepository
 from ..repositories.health_record_repository import HealthRecordRepository
 from ..repositories.patient_repository import PatientRepository
+from ..repositories.symptom_repository import SymptomRepository
 from ..repositories.user_repository import UserRepository
 
 
@@ -15,11 +16,13 @@ class HealthRecordService:
         patient_repository=None,
         doctor_repository=None,
         department_repository=None,
+        symptom_repository=None,
     ):
         self.records = health_record_repository or HealthRecordRepository()
         self.patients = patient_repository or PatientRepository()
         self.doctors = doctor_repository or UserRepository()
         self.departments = department_repository or DepartmentRepository()
+        self.symptoms = symptom_repository or SymptomRepository()
 
     def list_records(self, patient_id, page, size):
         self._ensure_patient_exists(patient_id)
@@ -41,6 +44,7 @@ class HealthRecordService:
         notes=None,
         diagnosis=None,
         treatment=None,
+        symptom_ids=None,
     ):
         self._ensure_patient_exists(patient_id)
         doctor = None
@@ -53,6 +57,15 @@ class HealthRecordService:
             department = self.departments.find_by_id(department_id)
             if department is None:
                 raise NotFoundException("errors.department_not_found")
+
+        symptom_list = []
+        if symptom_ids:
+            for symptom_id in symptom_ids:
+                symptom = self.symptoms.find_by_id(symptom_id)
+                if symptom is None:
+                    raise NotFoundException("errors.symptom_not_found")
+                symptom_list.append(symptom)
+
         record = HealthRecord(
             patient_id=patient_id,
             title=title,
@@ -63,6 +76,9 @@ class HealthRecordService:
             diagnosis=diagnosis,
             treatment=treatment,
         )
+        if symptom_list:
+            record.symptoms = symptom_list
+
         self.records.add(record)
         self.records.commit()
         return record
@@ -79,6 +95,7 @@ class HealthRecordService:
         notes=None,
         diagnosis=None,
         treatment=None,
+        symptom_ids=None,
     ):
         record = self.get_record(patient_id, record_id)
         if title is not None:
@@ -103,6 +120,14 @@ class HealthRecordService:
             record.diagnosis = diagnosis
         if treatment is not None:
             record.treatment = treatment
+        if symptom_ids is not None:
+            symptom_list = []
+            for symptom_id in symptom_ids:
+                symptom = self.symptoms.find_by_id(symptom_id)
+                if symptom is None:
+                    raise NotFoundException("errors.symptom_not_found")
+                symptom_list.append(symptom)
+            record.symptoms = symptom_list
         self.records.commit()
         return record
 
