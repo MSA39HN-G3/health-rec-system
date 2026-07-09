@@ -15,6 +15,9 @@ from .doctor_schedule import DoctorSchedule
 from .booking_session import BookingSession, BookingSessionSymptom
 from .ai_recommendation import AIRecommendation
 from .appointment import Appointment, AppointmentStatusHistory
+from .doctor_document import DoctorDocument
+from .doctor_rating import DoctorRating
+from .doctor_statistics import DoctorStatistics
 
 __all__ = [
     "User",
@@ -39,5 +42,8 @@ __all__ = [
     "AIRecommendation",
     "Appointment",
     "AppointmentStatusHistory",
+    "DoctorDocument",
+    "DoctorRating",
+    "DoctorStatistics",
 ]
 
