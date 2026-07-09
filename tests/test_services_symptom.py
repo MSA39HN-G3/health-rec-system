@@ -296,3 +296,125 @@ class TestUpdateSymptom:
         svc = SymptomService(symptom_repo=srepo)
         svc.update_symptom(1, description="chỉ đổi desc")
         assert existing.name == "Giữ nguyên"
+
+
+class TestUpdateCategoryDescription:
+    def test_update_category_description_success(self):
+        existing = MagicMock()
+        existing.name = "Old"
+        existing.description = "Old desc"
+        repo = MagicMock()
+        repo.find_by_id.return_value = existing
+        svc = SymptomService(category_repo=repo)
+        result = svc.update_category(1, description="New desc")
+        assert existing.description == "New desc"
+        repo.commit.assert_called_once()
+
+
+class TestGetRecommendations:
+    def test_get_recommendations_with_matching_keywords_and_conditions(self):
+        dept1 = MagicMock()
+        dept1.id = 1
+        dept1.name = "Khoa Hô hấp"
+        dept1.description = "Chuyên trị ho và bệnh phổi"
+        dept1.keywords = ["ho", "phổi"]
+        dept1.conditions = ["Viêm phổi", "Hen suyễn"]
+
+        dept2 = MagicMock()
+        dept2.id = 2
+        dept2.name = "Khoa Tiêu hóa"
+        dept2.description = "Chuyên trị đau dạ dày"
+        dept2.keywords = ["đau bụng", "dạ dày"]
+        dept2.conditions = ["Đau bao tử"]
+
+        dept3 = MagicMock()
+        dept3.id = 3
+        dept3.name = "Khoa Tim mạch"
+        dept3.description = "Chuyên trị tim mạch"
+        dept3.keywords = ["đau ngực", "tim đập nhanh"]
+        dept3.conditions = ["Suy tim"]
+
+        dept_repo = MagicMock()
+        dept_repo.find_all.return_value = [dept1, dept2, dept3]
+
+        svc = SymptomService(department_repo=dept_repo)
+        recs = svc.get_recommendations(["ho", "đau bao tử"])
+
+        assert len(recs) == 3
+        assert recs[0]["specialty"]["id"] == 1
+        assert recs[0]["score"] == 0.4
+        assert recs[1]["specialty"]["id"] == 2
+        assert recs[1]["score"] == 0.3
+        assert recs[2]["specialty"]["id"] == 3
+        assert recs[2]["score"] == 0.1
+
+    def test_get_recommendations_partial_matches_and_description(self):
+        dept1 = MagicMock()
+        dept1.id = 1
+        dept1.name = "Khoa Hô hấp"
+        dept1.description = "Chuyên trị ho và bệnh phổi"
+        dept1.keywords = []
+        # partial condition match: "hen" matches "Hen suyễn"
+        dept1.conditions = ["Hen suyễn"]
+
+        dept2 = MagicMock()
+        dept2.id = 2
+        dept2.name = "Khoa Tiêu hóa"
+        dept2.description = "Chuyên trị bệnh đau dạ dày"
+        dept2.keywords = []
+        dept2.conditions = []
+        # description match: "dạ dày" matches "Chuyên trị bệnh đau dạ dày"
+
+        dept_repo = MagicMock()
+        dept_repo.find_all.return_value = [dept1, dept2]
+
+        svc = SymptomService(department_repo=dept_repo)
+        recs = svc.get_recommendations(["hen", "dạ dày"])
+
+        assert len(recs) == 2
+        assert recs[0]["specialty"]["id"] == 1
+        assert recs[0]["score"] == 0.15 # partial condition match
+        assert recs[1]["specialty"]["id"] == 2
+        assert recs[1]["score"] == 0.10 # description match
+
+    def test_get_recommendations_no_symptoms_returns_fallback_depts(self):
+        dept1 = MagicMock()
+        dept1.id = 1
+        dept1.name = "Khoa Hô hấp"
+        dept1.description = "Chuyên trị ho và bệnh phổi"
+
+        dept2 = MagicMock()
+        dept2.id = 2
+        dept2.name = "Khoa Tiêu hóa"
+        dept2.description = "Chuyên trị đau dạ dày"
+
+        dept3 = MagicMock()
+        dept3.id = 3
+        dept3.name = "Khoa Tim mạch"
+        dept3.description = "Chuyên trị tim mạch"
+
+        dept4 = MagicMock()
+        dept4.id = 4
+        dept4.name = "Khoa Nhi"
+        dept4.description = "Chuyên trị bệnh nhi"
+
+        dept5 = MagicMock()
+        dept5.id = 5
+        dept5.name = "Khoa Nội tổng quát"
+        dept5.description = "Khám tổng quát"
+
+        dept_repo = MagicMock()
+        dept_repo.find_all.return_value = [dept1, dept2, dept3, dept4, dept5]
+
+        svc = SymptomService(department_repo=dept_repo)
+        recs = svc.get_recommendations([])
+
+        assert len(recs) == 3
+        assert recs[0]["specialty"]["id"] == 1
+        assert recs[0]["score"] == 0.3
+        assert recs[1]["specialty"]["id"] == 2
+        assert recs[1]["score"] == 0.2
+        assert recs[2]["specialty"]["id"] == 3
+        assert recs[2]["score"] == 0.1
+
+
