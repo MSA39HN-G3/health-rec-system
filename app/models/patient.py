@@ -17,6 +17,11 @@ class Patient(db.Model):
     phone = db.Column(db.String(32))
     email = db.Column(db.String(255))
     address = db.Column(db.Text)
+    blood_type = db.Column(db.String(32))
+    height = db.Column(db.Float)
+    weight = db.Column(db.Float)
+    medical_history = db.Column(db.Text)
+    allergies = db.Column(db.Text)
     created_at = db.Column(db.DateTime(timezone=True), default=_now, nullable=False)
     updated_at = db.Column(
         db.DateTime(timezone=True), default=_now, onupdate=_now, nullable=False
@@ -38,6 +43,11 @@ class Patient(db.Model):
             "phone": self.phone,
             "email": self.email,
             "address": self.address,
+            "blood_type": self.blood_type,
+            "height": self.height,
+            "weight": self.weight,
+            "medical_history": self.medical_history,
+            "allergies": self.allergies,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

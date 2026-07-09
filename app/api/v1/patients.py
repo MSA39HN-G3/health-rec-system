@@ -63,6 +63,11 @@ def list_patients():
         "phone": Field(str, required=False, max_length=32),
         "email": Field(str, required=False, max_length=255),
         "address": Field(str, required=False, max_length=2000),
+        "blood_type": Field(str, required=False, max_length=32, nullable=True),
+        "height": Field(float, required=False, minimum=0.0, nullable=True),
+        "weight": Field(float, required=False, minimum=0.0, nullable=True),
+        "medical_history": Field(str, required=False, max_length=10000, nullable=True),
+        "allergies": Field(str, required=False, max_length=10000, nullable=True),
     }
 )
 def create_patient():
@@ -74,6 +79,11 @@ def create_patient():
         phone=data.get("phone"),
         email=data.get("email"),
         address=data.get("address"),
+        blood_type=data.get("blood_type"),
+        height=data.get("height"),
+        weight=data.get("weight"),
+        medical_history=data.get("medical_history"),
+        allergies=data.get("allergies"),
     )
     return success_response(
         patient.to_dict(),
@@ -99,6 +109,11 @@ def get_patient(patient_id):
         "phone": Field(str, required=False, max_length=32),
         "email": Field(str, required=False, max_length=255),
         "address": Field(str, required=False, max_length=2000),
+        "blood_type": Field(str, required=False, max_length=32, nullable=True),
+        "height": Field(float, required=False, minimum=0.0, nullable=True),
+        "weight": Field(float, required=False, minimum=0.0, nullable=True),
+        "medical_history": Field(str, required=False, max_length=10000, nullable=True),
+        "allergies": Field(str, required=False, max_length=10000, nullable=True),
     }
 )
 def update_patient(patient_id):
@@ -111,6 +126,11 @@ def update_patient(patient_id):
         phone=data.get("phone"),
         email=data.get("email"),
         address=data.get("address"),
+        blood_type=data.get("blood_type"),
+        height=data.get("height"),
+        weight=data.get("weight"),
+        medical_history=data.get("medical_history"),
+        allergies=data.get("allergies"),
     )
     return success_response(
         patient.to_dict(),
