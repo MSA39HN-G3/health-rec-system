@@ -17,8 +17,9 @@ class Role:
     DEPARTMENT_HEAD = "department_head"
     DOCTOR = "doctor"
     PATIENT = "patient"
+    STAFF = "staff"  # nhân viên (lễ tân, điều dưỡng, ...) — tạo đánh giá hộ BN
 
-    ALL = (ADMIN, DEPARTMENT_HEAD, DOCTOR, PATIENT)
+    ALL = (ADMIN, DEPARTMENT_HEAD, DOCTOR, PATIENT, STAFF)
 
 
 class Permission:

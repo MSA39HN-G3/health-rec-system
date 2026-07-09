@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.common.roles import Role
-from app.errors import ForbiddenException, ValidationException
+from app.errors import ForbiddenException, NotFoundException, ValidationException
 from app.services.doctor_document_service import DoctorDocumentService
 
 
@@ -277,6 +277,95 @@ class TestExpiringDocuments:
 
         doc_repo.find_expiring_documents.assert_called_once_with(30)
         assert len(result) == 1
+
+
+class TestNotFoundBranches:
+    """Test các nhánh `doc/doctor không tồn tại` của document service."""
+
+    def test_list_documents_doctor_not_found(self):
+        doctor_repo = MagicMock()
+        doctor_repo.find_by_id.return_value = None
+        svc = _service(doctor_repository=doctor_repo)
+        actor = _user(has_roles=[Role.ADMIN])
+        with pytest.raises(NotFoundException):
+            svc.list_documents(actor=actor, doctor_id=999)
+
+    def test_get_document_not_found(self):
+        doc_repo = MagicMock()
+        doc_repo.find_by_id.return_value = None
+        svc = _service(document_repository=doc_repo)
+        actor = _user(has_roles=[Role.ADMIN])
+        with pytest.raises(NotFoundException):
+            svc.get_document(actor=actor, document_id=999)
+
+    def test_create_document_doctor_not_found(self):
+        doctor_repo = MagicMock()
+        doctor_repo.find_by_id.return_value = None
+        svc = _service(doctor_repository=doctor_repo)
+        actor = _user(has_roles=[Role.ADMIN])
+        with pytest.raises(NotFoundException):
+            svc.create_document(
+                actor=actor, doctor_id=999,
+                data={"document_type": "degree", "title": "t"},
+            )
+
+    def test_update_document_not_found(self):
+        doc_repo = MagicMock()
+        doc_repo.find_by_id.return_value = None
+        svc = _service(document_repository=doc_repo)
+        actor = _user(has_roles=[Role.ADMIN])
+        with pytest.raises(NotFoundException):
+            svc.update_document(
+                actor=actor, document_id=999, data={"title": "x"}
+            )
+
+    def test_delete_document_not_found(self):
+        doc_repo = MagicMock()
+        doc_repo.find_by_id.return_value = None
+        svc = _service(document_repository=doc_repo)
+        actor = _user(has_roles=[Role.ADMIN])
+        with pytest.raises(NotFoundException):
+            svc.delete_document(actor=actor, document_id=999)
+
+    def test_verify_document_not_found(self):
+        doc_repo = MagicMock()
+        doc_repo.find_by_id.return_value = None
+        svc = _service(document_repository=doc_repo)
+        actor = _user(has_roles=[Role.ADMIN])
+        with pytest.raises(NotFoundException):
+            svc.verify_document(actor=actor, document_id=999)
+
+    def test_get_unverified_documents(self):
+        doc_repo = MagicMock()
+        doc_repo.find_unverified_documents.return_value = [_document(id=1)]
+        svc = _service(document_repository=doc_repo)
+        actor = _user(has_roles=[Role.ADMIN])
+        result = svc.get_unverified_documents(actor=actor)
+        assert len(result) == 1
+        doc_repo.find_unverified_documents.assert_called_once()
+
+    def test_get_unverified_denies_non_admin(self):
+        svc = _service()
+        actor = _user(has_roles=[Role.DOCTOR])
+        with pytest.raises(ForbiddenException):
+            svc.get_unverified_documents(actor=actor)
+
+    def test_check_permission_no_actor(self):
+        svc = _service(
+            doctor_repository=MagicMock(),
+            department_repository=MagicMock(),
+        )
+        with pytest.raises(ForbiddenException):
+            svc._check_permission(None, doctor_id=1)
+
+    def test_check_permission_denies_plain_user(self):
+        svc = _service(
+            doctor_repository=MagicMock(),
+            department_repository=MagicMock(),
+        )
+        actor = _user(has_roles=[])
+        with pytest.raises(ForbiddenException):
+            svc._check_permission(actor, doctor_id=1)
 
 
 class TestCleanupOldObject:

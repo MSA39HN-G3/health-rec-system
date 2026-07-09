@@ -1,7 +1,7 @@
 """Unit test cho DoctorService — phủ 3 nhánh phân quyền admin / dept_head."""
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -206,3 +206,213 @@ class TestUpdatePermission:
         doctor = MagicMock(department_id=1)
         with pytest.raises(ForbiddenException):
             svc._check_update_permission(actor, doctor)
+
+
+class TestCreateDoctorValidation:
+    """Test các nhánh validation của create_doctor."""
+
+    def _svc(self, **kw):
+        return _doctor_service(**kw)
+
+    def test_create_doctor_duplicate_license(self):
+        svc, dr, *_ = self._svc()
+        # department OK nhưng license đã tồn tại.
+        deptr = svc[2] if False else MagicMock()
+        dr.find_by_license_number.return_value = MagicMock(id=42)
+        dept_repo = MagicMock()
+        dept_repo.find_by_id.return_value = MagicMock(id=1)
+        svc = DoctorService(
+            doctor_repository=dr,
+            department_repository=dept_repo,
+            role_repository=MagicMock(),
+        )
+        actor = _user(has_roles=[Role.ADMIN])
+        with pytest.raises(Exception):
+            svc.create_doctor(
+                actor=actor,
+                data={
+                    "full_name": "Nguyen Van A",
+                    "department_id": 1,
+                    "license_number": "VN-001",
+                },
+            )
+
+    def test_create_doctor_department_not_found(self):
+        svc = DoctorService(
+            doctor_repository=MagicMock(),
+            department_repository=MagicMock(),
+            role_repository=MagicMock(),
+        )
+        svc.departments.find_by_id.return_value = None
+        actor = _user(has_roles=[Role.ADMIN])
+        with pytest.raises(Exception):
+            svc.create_doctor(
+                actor=actor,
+                data={"full_name": "A", "department_id": 999},
+            )
+
+
+class TestUpdateDoctorValidation:
+    """Test các nhánh validation của update_doctor."""
+
+    def _setup(self):
+        dr = MagicMock()
+        deptr = MagicMock()
+        deptr.find_by_id.return_value = MagicMock(id=1)
+        svc = DoctorService(
+            doctor_repository=dr,
+            department_repository=deptr,
+            role_repository=MagicMock(),
+        )
+        return svc, dr, deptr
+
+    def test_update_doctor_not_found(self):
+        svc, dr, _ = self._setup()
+        dr.find_by_id.return_value = None
+        actor = _user(has_roles=[Role.ADMIN])
+        with pytest.raises(Exception):
+            svc.update_doctor(
+                actor=actor, doctor_id=999, data={"full_name": "X"}
+            )
+
+    def test_update_doctor_license_duplicate(self):
+        svc, dr, _ = self._setup()
+        doctor = MagicMock(license_number="OLD-1", department_id=1)
+        dr.find_by_id.return_value = doctor
+        dr.find_by_license_number.return_value = MagicMock(id=99)
+        actor = _user(has_roles=[Role.ADMIN])
+        with pytest.raises(Exception):
+            svc.update_doctor(
+                actor=actor, doctor_id=1,
+                data={"license_number": "NEW-1"},
+            )
+
+    def test_update_doctor_invalid_department(self):
+        svc, dr, deptr = self._setup()
+        doctor = MagicMock(license_number="X", department_id=1)
+        dr.find_by_id.return_value = doctor
+        deptr.find_by_id.return_value = None  # department không tồn tại
+        actor = _user(has_roles=[Role.ADMIN])
+        with pytest.raises(Exception):
+            svc.update_doctor(
+                actor=actor, doctor_id=1,
+                data={"department_id": 999},
+            )
+
+    def test_update_doctor_change_avatar_invalidates_url(self):
+        """Đổi avatar key -> url cache bị xoá."""
+        svc, dr, _ = self._setup()
+        doctor = MagicMock(
+            license_number="X",
+            department_id=1,
+            avatar_object_key="old/avatar.jpg",
+            avatar_url="https://presigned/old",
+        )
+        dr.find_by_id.return_value = doctor
+        actor = _user(has_roles=[Role.ADMIN])
+
+        with patch.object(svc, "_cleanup_old_avatar"):
+            svc.update_doctor(
+                actor=actor,
+                doctor_id=1,
+                data={"avatar_object_key": "new/avatar.jpg"},
+            )
+        assert doctor.avatar_url is None
+
+    def test_update_doctor_r2_cleanup(self):
+        """Đổi avatar key -> phải gọi cleanup_old_avatar."""
+        svc, dr, _ = self._setup()
+        doctor = MagicMock(
+            license_number="X",
+            department_id=1,
+            avatar_object_key="old/a.jpg",
+            avatar_url="cached",
+        )
+        dr.find_by_id.return_value = doctor
+        actor = _user(has_roles=[Role.ADMIN])
+
+        with patch.object(svc, "_cleanup_old_avatar") as cleanup:
+            svc.update_doctor(
+                actor=actor, doctor_id=1,
+                data={"avatar_object_key": "new/a.jpg"},
+            )
+        cleanup.assert_called_once_with("old/a.jpg", "new/a.jpg")
+
+
+class TestDeleteDoctor:
+    def test_delete_doctor_not_found(self):
+        svc = DoctorService(
+            doctor_repository=MagicMock(),
+            department_repository=MagicMock(),
+            role_repository=MagicMock(),
+        )
+        svc.doctors.find_by_id.return_value = None
+        actor = _user(has_roles=[Role.ADMIN])
+        with pytest.raises(Exception):
+            svc.delete_doctor(actor=actor, doctor_id=999)
+
+    def test_delete_doctor_calls_cleanup(self):
+        svc = DoctorService(
+            doctor_repository=MagicMock(),
+            department_repository=MagicMock(),
+            role_repository=MagicMock(),
+        )
+        doctor = MagicMock(avatar_object_key="old.jpg")
+        svc.doctors.find_by_id.return_value = doctor
+        actor = _user(has_roles=[Role.ADMIN])
+
+        with patch.object(svc, "_cleanup_old_avatar") as cleanup:
+            svc.delete_doctor(actor=actor, doctor_id=1)
+        svc.doctors.delete.assert_called_once_with(doctor)
+        cleanup.assert_called_once_with("old.jpg", None)
+
+
+class TestGetDoctorStatistics:
+    def test_get_doctor_statistics_not_found(self):
+        svc = DoctorService(
+            doctor_repository=MagicMock(),
+            department_repository=MagicMock(),
+            role_repository=MagicMock(),
+            statistics_repository=MagicMock(),
+        )
+        svc.doctors.find_by_id.return_value = None
+        actor = _user(has_roles=[Role.ADMIN])
+        with pytest.raises(Exception):
+            svc.get_doctor_statistics(actor=actor, doctor_id=999)
+
+    def test_get_doctor_statistics_admin(self):
+        svc = DoctorService(
+            doctor_repository=MagicMock(),
+            department_repository=MagicMock(),
+            role_repository=MagicMock(),
+            statistics_repository=MagicMock(),
+        )
+        svc.doctors.find_by_id.return_value = MagicMock(department_id=1)
+        svc.statistics.find_or_create.return_value = MagicMock(id=1)
+        actor = _user(has_roles=[Role.ADMIN])
+        result = svc.get_doctor_statistics(actor=actor, doctor_id=1)
+        assert result.id == 1
+
+
+class TestGetExpiringLicenses:
+    def test_denies_non_admin(self):
+        svc = DoctorService(
+            doctor_repository=MagicMock(),
+            department_repository=MagicMock(),
+            role_repository=MagicMock(),
+        )
+        actor = _user(has_roles=[Role.DOCTOR])
+        with pytest.raises(ForbiddenException):
+            svc.get_expiring_licenses(actor=actor, days=30)
+
+    def test_returns_list_for_admin(self):
+        svc = DoctorService(
+            doctor_repository=MagicMock(),
+            department_repository=MagicMock(),
+            role_repository=MagicMock(),
+        )
+        svc.doctors.find_expiring_licenses.return_value = [MagicMock(), MagicMock()]
+        actor = _user(has_roles=[Role.ADMIN])
+        result = svc.get_expiring_licenses(actor=actor, days=10)
+        assert len(result) == 2
+        svc.doctors.find_expiring_licenses.assert_called_once_with(10)
