@@ -1,8 +1,8 @@
-import uuid
 import os
 import requests
-import random
+import secrets
 from datetime import datetime, date, time, timedelta
+from uuid import uuid4
 
 from ..extensions import db
 from ..errors import BadRequestException, NotFoundException, ConflictException
@@ -53,7 +53,7 @@ class BookingSessionService:
                     raise NotFoundException("errors.symptom_not_found")
 
         # Generate a unique session ID (UUID)
-        session_id = str(uuid.uuid4())
+        session_id = str(uuid4())
 
         session = BookingSession(
             id=session_id,
@@ -446,7 +446,7 @@ class BookingSessionService:
         session.status = "DOCTOR_SELECTED"
         db.session.flush()
 
-        code = f"APT-{date_obj.strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
+        code = f"APT-{date_obj.strftime('%Y%m%d')}-{secrets.randbelow(9000) + 1000}"
 
         apt = Appointment(
             code=code,
