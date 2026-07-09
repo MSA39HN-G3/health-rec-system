@@ -108,7 +108,12 @@ curl -X POST http://localhost:5000/api/v1/patients \
     "gender": "female",
     "phone": "0987654321",
     "email": "patient2@example.com",
-    "address": "456 Tran Hung Dao St, Hanoi"
+    "address": "456 Tran Hung Dao St, Hanoi",
+    "blood_type": "O+",
+    "height": 165.0,
+    "weight": 55.2,
+    "medical_history": "Không có",
+    "allergies": "Hải sản"
   }'
 ```
 
@@ -125,7 +130,12 @@ curl -X PATCH http://localhost:5000/api/v1/patients/1 \
   -H "Content-Type: application/json" \
   -d '{
     "phone": "0911111111",
-    "address": "789 New Address St, Da Nang"
+    "address": "789 New Address St, Da Nang",
+    "blood_type": "A-",
+    "height": 166.5,
+    "weight": 56.0,
+    "medical_history": "Đau dạ dày nhẹ",
+    "allergies": "Bụi nhà, phấn hoa"
   }'
 ```
 

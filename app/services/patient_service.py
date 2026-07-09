@@ -56,6 +56,11 @@ class PatientService:
         phone=None,
         email=None,
         address=None,
+        blood_type=None,
+        height=None,
+        weight=None,
+        medical_history=None,
+        allergies=None,
     ):
         """Create new patient record.
         
@@ -66,6 +71,11 @@ class PatientService:
             phone (str, optional): Contact phone number.
             email (str, optional): Email address.
             address (str, optional): Physical address.
+            blood_type (str, optional): Patient blood type.
+            height (float, optional): Patient height.
+            weight (float, optional): Patient weight.
+            medical_history (str, optional): Patient medical history.
+            allergies (str, optional): Patient allergies.
             
         Returns:
             Patient: Newly created patient object.
@@ -80,6 +90,11 @@ class PatientService:
             phone=phone,
             email=email,
             address=address,
+            blood_type=blood_type,
+            height=height,
+            weight=weight,
+            medical_history=medical_history,
+            allergies=allergies,
         )
         self.patients.add(patient)
         self.patients.commit()
@@ -95,6 +110,11 @@ class PatientService:
         phone=None,
         email=None,
         address=None,
+        blood_type=None,
+        height=None,
+        weight=None,
+        medical_history=None,
+        allergies=None,
     ):
         """Update existing patient record (only specified fields).
         
@@ -106,6 +126,11 @@ class PatientService:
             phone (str, optional): New phone number.
             email (str, optional): New email.
             address (str, optional): New address.
+            blood_type (str, optional): New blood type.
+            height (float, optional): New height.
+            weight (float, optional): New weight.
+            medical_history (str, optional): New medical history.
+            allergies (str, optional): New allergies.
             
         Returns:
             Patient: Updated patient object.
@@ -127,6 +152,16 @@ class PatientService:
             patient.email = email
         if address is not None:
             patient.address = address
+        if blood_type is not None:
+            patient.blood_type = blood_type
+        if height is not None:
+            patient.height = height
+        if weight is not None:
+            patient.weight = weight
+        if medical_history is not None:
+            patient.medical_history = medical_history
+        if allergies is not None:
+            patient.allergies = allergies
         self.patients.commit()
         return patient
 

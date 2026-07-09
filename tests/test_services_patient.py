@@ -81,10 +81,20 @@ class TestCreatePatient:
             phone="0901234567",
             email="b@example.com",
             address="Hà Nội",
+            blood_type="O+",
+            height=175.5,
+            weight=70.2,
+            medical_history="Không có",
+            allergies="Hải sản",
         )
         repo.add.assert_called_once()
         repo.commit.assert_called_once()
         assert result.full_name == "Trần Văn B"
+        assert result.blood_type == "O+"
+        assert result.height == 175.5
+        assert result.weight == 70.2
+        assert result.medical_history == "Không có"
+        assert result.allergies == "Hải sản"
 
     def test_invalid_date_string_raises_400(self):
         svc, _ = _svc()
@@ -119,12 +129,22 @@ class TestUpdatePatient:
             phone="0999",
             email="new@example.com",
             address="HCM",
+            blood_type="A-",
+            height=162.0,
+            weight=52.5,
+            medical_history="Tiểu đường",
+            allergies="Phấn hoa",
         )
         assert existing.full_name == "New Name"
         assert existing.gender == "female"
         assert existing.phone == "0999"
         assert existing.email == "new@example.com"
         assert existing.address == "HCM"
+        assert existing.blood_type == "A-"
+        assert existing.height == 162.0
+        assert existing.weight == 52.5
+        assert existing.medical_history == "Tiểu đường"
+        assert existing.allergies == "Phấn hoa"
         repo.commit.assert_called_once()
 
     def test_update_date(self):
