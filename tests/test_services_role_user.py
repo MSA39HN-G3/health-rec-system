@@ -228,3 +228,47 @@ class TestRemoveRole:
         svc.remove_role(1, "x")
         assert role not in user.roles
         ur.commit.assert_called_once()
+
+
+class TestSearchUsers:
+    def test_calls_repo_search(self):
+        svc, ur, _ = _make_user_service()
+        ur.search.return_value = (["u1"], 1)
+        items, total = svc.search_users("nguyen", page=1, size=10)
+        ur.search.assert_called_once_with("nguyen", 1, 10)
+        assert total == 1
+
+    def test_repo_returns_empty(self):
+        svc, ur, _ = _make_user_service()
+        ur.search.return_value = ([], 0)
+        items, total = svc.search_users("xyz", page=1, size=10)
+        assert total == 0
+        assert items == []
+
+
+class TestFilterUsers:
+    def test_filter_by_role(self):
+        svc, ur, _ = _make_user_service()
+        ur.filter.return_value = (["u1"], 1)
+        items, total = svc.filter_users(page=1, size=10, role="admin")
+        ur.filter.assert_called_once_with(1, 10, role="admin", is_active=None)
+        assert total == 1
+
+    def test_filter_by_is_active(self):
+        svc, ur, _ = _make_user_service()
+        ur.filter.return_value = (["u1", "u2"], 2)
+        items, total = svc.filter_users(page=1, size=10, is_active=True)
+        ur.filter.assert_called_once_with(1, 10, role=None, is_active=True)
+        assert total == 2
+
+    def test_filter_combined(self):
+        svc, ur, _ = _make_user_service()
+        ur.filter.return_value = ([], 0)
+        items, total = svc.filter_users(page=2, size=5, role="doctor", is_active=False)
+        ur.filter.assert_called_once_with(2, 5, role="doctor", is_active=False)
+
+    def test_filter_no_params(self):
+        svc, ur, _ = _make_user_service()
+        ur.filter.return_value = (["u1"], 1)
+        items, total = svc.filter_users(page=1, size=20)
+        ur.filter.assert_called_once_with(1, 20, role=None, is_active=None)
