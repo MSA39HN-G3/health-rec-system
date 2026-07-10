@@ -39,7 +39,10 @@
     "doctor_not_found": "Không tìm thấy bác sĩ.",
     "invalid_date_format": "Định dạng ngày không hợp lệ. Vui lòng dùng YYYY-MM-DD.",
     "invalid_datetime_format": "Định dạng ngày giờ không hợp lệ. Vui lòng dùng ISO 8601.",
-    "empty_symptoms": "Danh sách triệu chứng và mô tả không được để trống."
+    "empty_symptoms": "Danh sách triệu chứng và mô tả không được để trống.",
+    "appointment_not_found": "Không tìm thấy lịch hẹn.",
+    "invalid_appointment_status": "Trạng thái lịch hẹn không hợp lệ.",
+    "appointment_already_finalized": "Lịch hẹn đã ở trạng thái kết thúc, không thể thay đổi thêm."
   },
   "messages": {
     "login_success": "Đăng nhập thành công.",
@@ -65,7 +68,9 @@
     "booking_session_patient_updated": "Cập nhật thông tin bệnh nhân thành công.",
     "booking_session_ai_recommended": "Phân tích triệu chứng và gợi ý chuyên khoa thành công.",
     "booking_session_department_selected": "Chọn chuyên khoa thành công.",
-    "booking_session_booked": "Đặt lịch khám thành công."
+    "booking_session_booked": "Đặt lịch khám thành công.",
+    "appointment_status_updated": "Cập nhật trạng thái lịch hẹn thành công.",
+    "appointment_cancelled": "Hủy lịch hẹn thành công."
   }
 }
 

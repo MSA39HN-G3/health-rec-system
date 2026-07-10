@@ -33,6 +33,8 @@ class Permission:
     RATING_READ = "rating:read"       # xem đánh giá
     RATING_WRITE = "rating:write"     # tạo/sửa đánh giá
     RATING_MANAGE = "rating:manage"   # xóa đánh giá (admin)
+    APPOINTMENT_READ = "appointment:read"      # xem danh sách/chi tiết lịch hẹn
+    APPOINTMENT_MANAGE = "appointment:manage"  # đổi trạng thái, hủy lịch hẹn
 
     ALL = (
         USER_READ,
@@ -45,6 +47,8 @@ class Permission:
         RATING_READ,
         RATING_WRITE,
         RATING_MANAGE,
+        APPOINTMENT_READ,
+        APPOINTMENT_MANAGE,
     )
 
 
@@ -60,6 +64,8 @@ PERMISSION_DESCRIPTIONS = {
     Permission.RATING_READ: "Xem đánh giá bác sĩ",
     Permission.RATING_WRITE: "Tạo và sửa đánh giá bác sĩ",
     Permission.RATING_MANAGE: "Quản lý (xóa) đánh giá bác sĩ",
+    Permission.APPOINTMENT_READ: "Xem danh sách và chi tiết lịch hẹn",
+    Permission.APPOINTMENT_MANAGE: "Đổi trạng thái và hủy lịch hẹn",
 }
 
 # Role -> danh sách permission mặc định khi seed.
@@ -73,12 +79,15 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.RATING_READ,
         Permission.RATING_WRITE,
         Permission.RATING_MANAGE,
+        Permission.APPOINTMENT_READ,
+        Permission.APPOINTMENT_MANAGE,
     ],
     Role.DEPARTMENT_HEAD: [
         Permission.RECORD_READ,
         Permission.RECORD_WRITE,
         Permission.DEPARTMENT_MANAGE,
         Permission.RATING_READ,
+        Permission.APPOINTMENT_READ,
     ],
     Role.DOCTOR: [
         Permission.RECORD_READ,
