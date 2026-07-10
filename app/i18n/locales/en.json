@@ -39,7 +39,10 @@
     "doctor_not_found": "Doctor not found.",
     "invalid_date_format": "Date format is invalid. Use YYYY-MM-DD.",
     "invalid_datetime_format": "Datetime format is invalid. Use ISO 8601.",
-    "empty_symptoms": "Symptom list and description cannot be empty."
+    "empty_symptoms": "Symptom list and description cannot be empty.",
+    "appointment_not_found": "Appointment not found.",
+    "invalid_appointment_status": "Invalid appointment status.",
+    "appointment_already_finalized": "This appointment has already reached a final status and cannot be changed further."
   },
   "messages": {
     "login_success": "Signed in successfully.",
@@ -65,7 +68,9 @@
     "booking_session_patient_updated": "Patient information updated successfully.",
     "booking_session_ai_recommended": "Symptoms analyzed and specialties suggested successfully.",
     "booking_session_department_selected": "Department selected successfully.",
-    "booking_session_booked": "Appointment booked successfully."
+    "booking_session_booked": "Appointment booked successfully.",
+    "appointment_status_updated": "Appointment status updated successfully.",
+    "appointment_cancelled": "Appointment cancelled successfully."
   }
 }
 
