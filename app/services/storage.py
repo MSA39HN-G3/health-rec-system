@@ -34,9 +34,14 @@ logger = logging.getLogger(__name__)
 _SIG_VERSION = "s3v4"
 _REGION = "auto"
 
-# Map extension/loại object => prefix trong bucket. Hiện chỉ có department_avatar.
+# Map extension/loại object => prefix trong bucket.
+#  - department_avatar: ảnh đại diện khoa
+#  - doctor_avatar:     ảnh đại diện bác sĩ
+#  - doctor_document:   tài liệu bác sĩ (giấy phép, bằng cấp, hợp đồng, ...)
 _KIND_PREFIXES = {
     "department_avatar": "department",
+    "doctor_avatar": "doctor",
+    "doctor_document": "doctor",
 }
 
 # Map content_type -> đuôi file mặc định.
@@ -85,7 +90,10 @@ def _public_host(cfg) -> Optional[str]:
 def build_object_key(kind: str, content_type: str) -> str:
     """Sinh key ngẫu nhiên theo `kind` + content_type.
 
-    Ví dụ: ("department_avatar", "image/png") -> "department/<uuid>.png"
+    Ví dụ:
+      ("department_avatar", "image/png")     -> "department/<uuid>.png"
+      ("doctor_avatar",     "image/jpeg")    -> "doctor/avatar/<uuid>.jpg"
+      ("doctor_document",   "application/pdf") -> "doctor/document/<uuid>.pdf"
     """
     if kind not in _KIND_PREFIXES:
         raise BadRequestException(
@@ -98,7 +106,13 @@ def build_object_key(kind: str, content_type: str) -> str:
             "errors.upload_content_type_unsupported",
             details={"content_type": "invalid_type"},
         )
-    return f"{_KIND_PREFIXES[kind]}/{uuid.uuid4().hex}{ext}"
+    base = _KIND_PREFIXES[kind]
+    # Các kind liên quan tới doctor phân thành sub-prefix để dễ quản lý trong bucket.
+    if kind == "doctor_avatar":
+        return f"{base}/avatar/{uuid.uuid4().hex}{ext}"
+    if kind == "doctor_document":
+        return f"{base}/document/{uuid.uuid4().hex}{ext}"
+    return f"{base}/{uuid.uuid4().hex}{ext}"
 
 
 def validate_content_type(content_type: str) -> None:
@@ -125,11 +139,21 @@ def is_valid_object_key(key: str) -> bool:
 
     Dùng khi client gửi ngược `object_key` về (vd trong `confirm` hoặc khi lưu
     vào entity) để chống injection / path traversal.
+
+    Các prefix được chấp nhận:
+      - department/...
+      - doctor/avatar/...
+      - doctor/document/...
     """
     if not key or "\x00" in key or key.startswith("/") or "//" in key:
         return False
+    valid_prefixes = {
+        "department",
+        "doctor/avatar",
+        "doctor/document",
+    }
     head, _, _name = key.rpartition("/")
-    return head in _KIND_PREFIXES.values() and bool(_name)
+    return head in valid_prefixes and bool(_name)
 
 
 def presign_put(object_key: str, content_type: str) -> dict:

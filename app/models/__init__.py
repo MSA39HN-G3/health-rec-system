@@ -8,13 +8,16 @@ from .symptom_department_map import SymptomDepartmentMap
 from .token_blacklist import TokenBlacklist
 from .user import User
 from .patient import Patient
-from .health_record import HealthRecord
+from .health_record import HealthRecord, HealthRecordSymptom
 from .recommendation import Recommendation
 from .room import Room
 from .doctor_schedule import DoctorSchedule
 from .booking_session import BookingSession, BookingSessionSymptom
 from .ai_recommendation import AIRecommendation
 from .appointment import Appointment, AppointmentStatusHistory
+from .doctor_document import DoctorDocument
+from .doctor_rating import DoctorRating
+from .doctor_statistics import DoctorStatistics
 
 __all__ = [
     "User",
@@ -31,6 +34,7 @@ __all__ = [
     "SymptomDepartmentMap",
     "Patient",
     "HealthRecord",
+    "HealthRecordSymptom",
     "Recommendation",
     "Room",
     "DoctorSchedule",
@@ -39,5 +43,8 @@ __all__ = [
     "AIRecommendation",
     "Appointment",
     "AppointmentStatusHistory",
+    "DoctorDocument",
+    "DoctorRating",
+    "DoctorStatistics",
 ]
 

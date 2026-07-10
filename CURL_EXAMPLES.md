@@ -108,7 +108,12 @@ curl -X POST http://localhost:5000/api/v1/patients \
     "gender": "female",
     "phone": "0987654321",
     "email": "patient2@example.com",
-    "address": "456 Tran Hung Dao St, Hanoi"
+    "address": "456 Tran Hung Dao St, Hanoi",
+    "blood_type": "O+",
+    "height": 165.0,
+    "weight": 55.2,
+    "medical_history": "Không có",
+    "allergies": "Hải sản"
   }'
 ```
 
@@ -125,7 +130,12 @@ curl -X PATCH http://localhost:5000/api/v1/patients/1 \
   -H "Content-Type: application/json" \
   -d '{
     "phone": "0911111111",
-    "address": "789 New Address St, Da Nang"
+    "address": "789 New Address St, Da Nang",
+    "blood_type": "A-",
+    "height": 166.5,
+    "weight": 56.0,
+    "medical_history": "Đau dạ dày nhẹ",
+    "allergies": "Bụi nhà, phấn hoa"
   }'
 ```
 
@@ -143,7 +153,7 @@ curl -X GET "http://localhost:5000/api/v1/patients/1/records?page=1&size=20" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-### 3.2 Tạo hồ sơ sức khỏe
+### 3.2 Tạo hồ sơ sức khỏe (Kèm theo triệu chứng)
 ```bash
 curl -X POST http://localhost:5000/api/v1/patients/1/records \
   -H "Authorization: Bearer $TOKEN" \
@@ -155,7 +165,19 @@ curl -X POST http://localhost:5000/api/v1/patients/1/records \
     "department_id": 2,
     "notes": "Tình trạng bệnh nhân ổn định",
     "diagnosis": "Cảm cúm",
-    "treatment": "Dùng thuốc hạ sốt và antibiotics"
+    "treatment": "Dùng thuốc hạ sốt và antibiotics",
+    "symptom_ids": ["1", "2"]
+  }'
+```
+
+### 3.3 Cập nhật hồ sơ sức khỏe
+```bash
+curl -X PATCH http://localhost:5000/api/v1/patients/1/records/1 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Khám tổng quát cập nhật",
+    "symptom_ids": ["2", "3"]
   }'
 ```
 
