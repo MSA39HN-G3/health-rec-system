@@ -56,7 +56,7 @@ def require_auth(fn):
 def require_role(*roles):
     """Yêu cầu user đã đăng nhập VÀ có ít nhất một trong các role cho phép.
 
-    Dùng: @require_role(Role.ADMIN) hoặc @require_role(Role.DOCTOR, Role.DEPARTMENT_HEAD).
+    Dùng: @require_role(Role.ADMIN) hoặc @require_role(Role.DOCTOR, Role.STAFF).
     Chưa đăng nhập -> 401; đã đăng nhập nhưng thiếu role -> 403.
     """
 

@@ -1,17 +1,9 @@
 # Hướng dẫn FE: Phân quyền RBAC (role & permission)
 
-> **Phiên bản: 1.1.0** — Cập nhật: bổ sung trạng thái tài khoản `is_active`
-> (vô hiệu hóa / kích hoạt user). Xem [Lịch sử thay đổi](#10-lịch-sử-thay-đổi).
-
-Hệ thống dùng RBAC database-driven:
-
-```
-1 user  có nhiều role  —  1 role  có nhiều permission   (đều là quan hệ nhiều-nhiều)
-```
-
-FE dùng **permission** (và/hoặc role) của user để hiện/ẩn chức năng và điều hướng.
-Quyền thực sự luôn được **BE kiểm tra lại** ở mỗi request — phía FE chỉ là trải nghiệm.
-
+> **Phiên bản: 1.4.0** — Bỏ role `patient` + 3 permission `rating:*` + toàn bộ
+> tính năng đánh giá bác sĩ. Migration `1c2d3e4f5a6b`. Hệ thống giờ chỉ có 2
+> role: `admin`, `staff`.
+>
 > Tài liệu liên quan: [`FE_GOOGLE_LOGIN.md`](./FE_GOOGLE_LOGIN.md) (đăng nhập),
 > [`FE_AUTH_TOKEN.md`](./FE_AUTH_TOKEN.md) (token, gọi API có bảo vệ).
 
@@ -28,9 +20,9 @@ kèm `roles` và `permissions`:
   "data": {
     "user": {
       "id": 1,
-      "email": "doctor@hospital.com",
-      "full_name": "BS. Nguyen Van A",
-      "roles": ["doctor"],
+      "email": "staff@hospital.com",
+      "full_name": "Nguyen Van Staff",
+      "roles": ["staff"],
       "permissions": ["record:read", "record:write"],
       "email_verified": true,
       "is_active": true,
@@ -40,7 +32,7 @@ kèm `roles` và `permissions`:
 }
 ```
 
-- `roles`: danh sách **tên role** user đang có (vd `["doctor"]`, có thể nhiều).
+- `roles`: danh sách **tên role** user đang có (vd `["staff"]`, có thể nhiều). Role `doctor` đã bỏ từ 1.3.0.
 - `permissions`: **gộp** mọi permission từ các role của user (đây là thứ FE nên dùng để gate UI).
 - `is_active`: `false` nghĩa là tài khoản **bị vô hiệu hóa** — user không làm được gì (xem mục 4 & 5.4).
 - User mới onboard: `roles: []`, `permissions: []` (chưa được admin gán).
@@ -56,8 +48,10 @@ kèm `roles` và `permissions`:
 | Role | Ý nghĩa |
 |---|---|
 | `admin` | Quản trị, quản lý user & phân quyền |
-| `department_head` | Trưởng khoa |
-| `doctor` | Bác sĩ |
+| `staff` | Nhân viên (lễ tân, điều dưỡng, **và** trưởng khoa cũ) — sau 1.3.0 quản lý tất cả bác sĩ. |
+
+> ⚠️ Từ 1.3.0 role `doctor` đã bị xóa. Từ 1.4.0 role `patient` cũng bị xóa
+> cùng toàn bộ tính năng đánh giá.
 
 ### Permissions
 | Permission | Ý nghĩa | Role mặc định có |
@@ -65,9 +59,9 @@ kèm `roles` và `permissions`:
 | `user:read` | Xem danh sách user | admin |
 | `user:manage` | Gán/gỡ role cho user | admin |
 | `role:manage` | Tạo role, gán/gỡ permission | admin |
-| `record:read` | Xem hồ sơ sức khỏe | doctor, department_head |
-| `record:write` | Tạo/sửa hồ sơ sức khỏe | doctor, department_head |
-| `department:manage` | Quản lý khoa (xem [`FE_DEPARTMENT.md`](./FE_DEPARTMENT.md)) | admin, department_head |
+| `record:read` | Xem hồ sơ sức khỏe | staff |
+| `record:write` | Tạo/sửa hồ sơ sức khỏe | staff |
+| `department:manage` | Quản lý khoa (xem [`FE_DEPARTMENT.md`](./FE_DEPARTMENT.md)) | admin, staff |
 
 > Mapping trên là **mặc định khi seed**; admin có thể thay đổi qua API quản lý role.
 
@@ -178,7 +172,7 @@ Cần `user:read`. Hỗ trợ phân trang.
 // GET /api/v1/admin/users?page=1&size=20
 {
   "status": "success", "code": "200", "message": null,
-  "data": [ { "id": 1, "email": "...", "roles": ["doctor"], "permissions": ["record:read","record:write"], ... } ],
+  "data": [ { "id": 1, "email": "...", "roles": ["staff"], "permissions": ["record:read","record:write"], ... } ],
   "meta": { "page": 1, "size": 20, "totalPage": 3 }
 }
 ```
@@ -186,20 +180,20 @@ Cần `user:read`. Hỗ trợ phân trang.
 > `data` là **mảng**; thông tin phân trang nằm ở `meta`.
 
 ### 5.2. Gán role cho user — `POST /api/v1/admin/users/<id>/roles`
-Cần `user:manage`. Body: `{ "role": "doctor" }`
+Cần `user:manage`. Body: `{ "role": "staff" }`
 
 ```jsonc
 // 200 OK
 { "status": "success", "message": "Gán role cho user thành công.",
-  "data": { "user": { "id": 2, "roles": ["doctor"], "permissions": ["record:read","record:write"], ... } } }
+  "data": { "user": { "id": 2, "roles": ["staff"], "permissions": ["record:read","record:write"], ... } } }
 ```
-Lỗi: `404` nếu user hoặc role không tồn tại; `422` nếu thiếu `role`.
+Lỗi: `404` nếu user hoặc role không tồn tại; `422` nếu thiếu `role`. Role hợp lệ hiện tại: `admin`, `staff`, `patient` (role `doctor` đã bỏ ở 1.3.0).
 
 ### 5.3. Gỡ role khỏi user — `DELETE /api/v1/admin/users/<id>/roles/<role_name>`
 Cần `user:manage`.
 
 ```jsonc
-// DELETE /api/v1/admin/users/2/roles/doctor  -> 200
+// DELETE /api/v1/admin/users/2/roles/staff  -> 200
 { "status": "success", "message": "Gỡ role khỏi user thành công.",
   "data": { "user": { "id": 2, "roles": [], "permissions": [], ... } } }
 ```
@@ -210,7 +204,7 @@ Cần `user:manage`. Body: `{ "is_active": false }` để vô hiệu hóa, `true
 ```jsonc
 // PATCH /api/v1/admin/users/2/status   { "is_active": false }  -> 200
 { "status": "success", "message": "Cập nhật trạng thái user thành công.",
-  "data": { "user": { "id": 2, "is_active": false, "roles": ["doctor"], ... } } }
+  "data": { "user": { "id": 2, "is_active": false, "roles": ["staff"], ... } } }
 ```
 
 - Khi `is_active = false`: user bị chặn **mọi** thao tác ngay lập tức và không đăng nhập lại được.
@@ -333,6 +327,9 @@ async function setUserActive(userId, isActive) {
 
 | Phiên bản | Thay đổi |
 |---|---|
+| **1.4.0** | **Bỏ role `patient` + 3 permission `rating:*` + tính năng đánh giá bác sĩ**. Hệ thống chỉ còn 2 role (`admin`, `staff`). FE cần dọn các màn hình rating (danh sách, form tạo/sửa đánh giá). Migration `1c2d3e4f5a6b`. |
+| **1.3.0** | **Bỏ role `doctor` và `head_doctor_id`**. Staff giờ quản lý tất cả bác sĩ (mọi khoa); UI gate theo permission không đổi. Migration `1a2b3c4d5e6f`. Cập nhật §2 Roles, §2 Permissions (record:* giờ chỉ ở staff), §5.2, §5.3. |
+| **1.2.0** | Gộp role `department_head` vào `staff`. FE gate UI y hệt (permission không đổi). Tên role hiển thị: dùng `staff` thay cho `department_head`. |
 | **1.1.0** | Thêm trạng thái tài khoản `is_active`: endpoint `PATCH /admin/users/<id>/status` (mục 5.4), trường `is_active` trong `user`, xử lý 403 khi tài khoản bị vô hiệu hóa, không cho admin tự khóa (400). |
 | **1.0.0** | Bản đầu: roles & permissions (nhiều-nhiều), gate UI theo permission, API admin quản lý user/role/permission. |
 ```

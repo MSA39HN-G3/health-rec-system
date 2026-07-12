@@ -9,17 +9,23 @@ Quan hệ:
   - 1 user  có nhiều role   (nhiều-nhiều).
   - 1 role  có nhiều permission (nhiều-nhiều).
   - User mới (onboard) KHÔNG có role nào; admin gán sau.
+
+Lịch sử refactor:
+  - 1a2b3c4d5e6f: bỏ role ``doctor`` + ``head_doctor_id``.
+  - 1c2d3e4f5a6b: bỏ role ``patient`` + 3 permission ``rating:*`` + toàn bộ
+    tính năng đánh giá bác sĩ.
 """
 
 
 class Role:
     ADMIN = "admin"
-    DEPARTMENT_HEAD = "department_head"
-    DOCTOR = "doctor"
-    PATIENT = "patient"
-    STAFF = "staff"  # nhân viên (lễ tân, điều dưỡng, ...) — tạo đánh giá hộ BN
+    # STAFF = nhân viên bệnh viện (quản lý bác sĩ, bệnh nhân, lịch hẹn...).
+    # Trước đây role `department_head` đã gộp vào `staff`, sau đó role
+    # `doctor` cũng được bỏ (refactor 1a2b3c4d5e6f — staff quản lý tất cả bác
+    # sĩ thông qua entity `doctors`, không còn scope theo khoa).
+    STAFF = "staff"
 
-    ALL = (ADMIN, DEPARTMENT_HEAD, DOCTOR, PATIENT, STAFF)
+    ALL = (ADMIN, STAFF)
 
 
 class Permission:
@@ -30,9 +36,8 @@ class Permission:
     RECORD_WRITE = "record:write"    # tạo/sửa hồ sơ
     DEPARTMENT_MANAGE = "department:manage"  # quản lý khoa
     SYMPTOM_MANAGE = "symptom:manage"        # quản lý triệu chứng & ánh xạ
-    RATING_READ = "rating:read"       # xem đánh giá
-    RATING_WRITE = "rating:write"     # tạo/sửa đánh giá
-    RATING_MANAGE = "rating:manage"   # xóa đánh giá (admin)
+    PATIENT_READ = "patient:read"    # xem danh sách / chi tiết bệnh nhân
+    PATIENT_MANAGE = "patient:manage"  # tạo/sửa hồ sơ bệnh nhân
     APPOINTMENT_READ = "appointment:read"      # xem danh sách/chi tiết lịch hẹn
     APPOINTMENT_MANAGE = "appointment:manage"  # đổi trạng thái, hủy lịch hẹn
 
@@ -44,9 +49,8 @@ class Permission:
         RECORD_WRITE,
         DEPARTMENT_MANAGE,
         SYMPTOM_MANAGE,
-        RATING_READ,
-        RATING_WRITE,
-        RATING_MANAGE,
+        PATIENT_READ,
+        PATIENT_MANAGE,
         APPOINTMENT_READ,
         APPOINTMENT_MANAGE,
     )
@@ -61,14 +65,16 @@ PERMISSION_DESCRIPTIONS = {
     Permission.RECORD_WRITE: "Tạo/sửa hồ sơ sức khỏe",
     Permission.DEPARTMENT_MANAGE: "Quản lý khoa",
     Permission.SYMPTOM_MANAGE: "Quản lý triệu chứng và ánh xạ chuyên khoa",
-    Permission.RATING_READ: "Xem đánh giá bác sĩ",
-    Permission.RATING_WRITE: "Tạo và sửa đánh giá bác sĩ",
-    Permission.RATING_MANAGE: "Quản lý (xóa) đánh giá bác sĩ",
+    Permission.PATIENT_READ: "Xem danh sách và chi tiết bệnh nhân",
+    Permission.PATIENT_MANAGE: "Tạo và sửa hồ sơ bệnh nhân",
     Permission.APPOINTMENT_READ: "Xem danh sách và chi tiết lịch hẹn",
     Permission.APPOINTMENT_MANAGE: "Đổi trạng thái và hủy lịch hẹn",
 }
 
 # Role -> danh sách permission mặc định khi seed.
+# Sau refactor 1a2b3c4d5e6f: role ``doctor`` đã bỏ.
+# Sau refactor 1c2d3e4f5a6b: role ``patient`` + 3 permission ``rating:*`` đã bỏ
+# (toàn bộ tính năng đánh giá bác sĩ bị xóa).
 DEFAULT_ROLE_PERMISSIONS = {
     Role.ADMIN: [
         Permission.USER_READ,
@@ -76,26 +82,19 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.ROLE_MANAGE,
         Permission.DEPARTMENT_MANAGE,
         Permission.SYMPTOM_MANAGE,
-        Permission.RATING_READ,
-        Permission.RATING_WRITE,
-        Permission.RATING_MANAGE,
+        Permission.PATIENT_READ,
+        Permission.PATIENT_MANAGE,
         Permission.APPOINTMENT_READ,
         Permission.APPOINTMENT_MANAGE,
     ],
-    Role.DEPARTMENT_HEAD: [
+    # Staff: quản lý tất cả bác sĩ (CRUD), bệnh nhân, lịch hẹn. Không có
+    # permission đặc quyền của admin (vd `user:manage`, `role:manage`).
+    Role.STAFF: [
         Permission.RECORD_READ,
         Permission.RECORD_WRITE,
         Permission.DEPARTMENT_MANAGE,
-        Permission.RATING_READ,
+        Permission.PATIENT_READ,
+        Permission.PATIENT_MANAGE,
         Permission.APPOINTMENT_READ,
-    ],
-    Role.DOCTOR: [
-        Permission.RECORD_READ,
-        Permission.RECORD_WRITE,
-        Permission.RATING_READ,
-    ],
-    Role.PATIENT: [
-        Permission.RATING_READ,
-        Permission.RATING_WRITE,
     ],
 }

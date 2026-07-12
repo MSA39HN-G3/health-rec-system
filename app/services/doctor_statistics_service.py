@@ -1,4 +1,4 @@
-"""Service quản lý thống kê bác sĩ."""
+﻿"""Service quản lý thống kê bác sĩ."""
 from ..common.roles import Role
 from ..errors import ForbiddenException, NotFoundException
 from ..repositories.doctor_repository import DoctorRepository
@@ -16,7 +16,7 @@ class DoctorStatisticsService:
 
     def _check_permission(self, actor):
         """Kiểm tra quyền xem thống kê."""
-        if not actor or not actor.has_role(Role.ADMIN, Role.DEPARTMENT_HEAD):
+        if not actor or not actor.has_role(Role.ADMIN, Role.STAFF):
             raise ForbiddenException("errors.forbidden")
 
     def _check_admin_only(self, actor):
@@ -25,20 +25,17 @@ class DoctorStatisticsService:
             raise ForbiddenException("errors.forbidden")
 
     def get_doctor_statistics(self, actor, doctor_id):
-        """Lấy thống kê của một bác sĩ."""
+        """Lấy thống kê của một bác sĩ.
+
+        Sau refactor 1a2b3c4d5e6f: staff quản lý tất cả bác sĩ nên không
+        còn scope theo khoa (head_doctor_id đã bỏ). FE tự filter theo
+        department_id nếu muốn giới hạn.
+        """
         doctor = self.doctors.find_by_id(doctor_id)
         if not doctor:
             raise NotFoundException("errors.not_found")
 
         self._check_permission(actor)
-
-        # Department head chỉ xem được thống kê của khoa mình
-        if actor.has_role(Role.DEPARTMENT_HEAD):
-            from ..repositories.department_repository import DepartmentRepository
-            dept_repo = DepartmentRepository()
-            my_dept = dept_repo.find_by_head_doctor_id(actor.id)
-            if my_dept and doctor.department_id != my_dept.id:
-                raise ForbiddenException("errors.forbidden")
 
         return self.statistics.find_or_create(doctor_id)
 
@@ -52,9 +49,14 @@ class DoctorStatisticsService:
         return self.statistics.recalculate_for_doctor(doctor_id)
 
     def get_top_rated_doctors(self, actor, limit=10):
-        """Lấy danh sách bác sĩ có điểm đánh giá cao nhất."""
+        """Lấy danh sách bác sĩ nổi bật.
+
+        Sau refactor 1c2d3e4f5a6b (bỏ tính năng đánh giá): hàm này giữ tên để
+        không phá API, nhưng backend đã fallback về "nhiều lịch hẹn nhất" — FE
+        nên đổi sang endpoint ``get_most_active_doctors`` cho rõ nghĩa.
+        """
         self._check_permission(actor)
-        return self.statistics.get_top_rated(limit)
+        return self.statistics.get_most_appointments(limit)
 
     def get_most_active_doctors(self, actor, limit=10):
         """Lấy danh sách bác sĩ có nhiều lịch hẹn nhất."""
@@ -68,7 +70,7 @@ class DoctorStatisticsService:
         from ..extensions import db
         from ..models.doctor_statistics import DoctorStatistics
 
-        query = DoctorStatistics.query.order_by(DoctorStatistics.average_rating.desc().nullslast())
+        query = DoctorStatistics.query.order_by(DoctorStatistics.total_appointments.desc())
         total = query.count()
         items = query.offset((page - 1) * size).limit(size).all()
         return items, total

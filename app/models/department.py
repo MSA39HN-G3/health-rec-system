@@ -47,11 +47,9 @@ class Department(db.Model):
     # Metadata mở rộng phi cấu trúc (vd {"icd10": [...], "age_group": "adult"}).
     ai_metadata = db.Column(JSONB, nullable=False, server_default="{}")
 
-    # Trưởng khoa (tùy chọn) - FK tới users. SET NULL khi user bị xóa.
-    head_doctor_id = db.Column(
-        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-    )
-    head_doctor = db.relationship("User", foreign_keys=[head_doctor_id], lazy="joined")
+    # Trưởng khoa cũ từng là user-id; sau refactor khái niệm này đã được bỏ
+    # (staff quản lý tất cả bác sĩ thuộc khoa, không cần gắn một user/doctor
+    # cụ thể làm "trưởng"). Xem migration 1a2b3c4d5e6f.
 
     is_active = db.Column(
         db.Boolean, default=True, nullable=False, server_default="true"
@@ -86,12 +84,8 @@ class Department(db.Model):
             "conditions": list(self.conditions or []),
             "techniques": list(self.techniques or []),
             "ai_metadata": self.ai_metadata or {},
-            "head_doctor_id": self.head_doctor_id,
-            "head_doctor": (
-                {"id": self.head_doctor.id, "full_name": self.head_doctor.full_name}
-                if self.head_doctor
-                else None
-            ),
+            # `head_doctor` đã bỏ theo refactor 1a2b3c4d5e6f — staff giờ quản lý
+            # tất cả bác sĩ trong khoa, không gắn một user/doctor cụ thể.
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

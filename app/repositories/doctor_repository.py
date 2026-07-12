@@ -10,6 +10,17 @@ class DoctorRepository:
         """Tìm bác sĩ theo số giấy phép hành nghề."""
         return Doctor.query.filter_by(license_number=license_number).first()
 
+    def find_by_email(self, email):
+        """Tìm bác sĩ theo email (so khớp không phân biệt hoa thường)."""
+        from sqlalchemy import func
+
+        normalized = (email or "").strip()
+        if not normalized:
+            return None
+        return Doctor.query.filter(
+            func.lower(Doctor.email) == normalized.lower()
+        ).first()
+
     def paginate(self, page, size, department_id=None, is_active=None):
         """Lấy danh sách bác sĩ có phân trang.
 

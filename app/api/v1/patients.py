@@ -23,7 +23,7 @@ _record_service = HealthRecordService()
 
 
 @bp.get("/count")
-@require_permission(Permission.USER_READ)
+@require_permission(Permission.PATIENT_READ)
 def count_patients():
     """Get total count of all patients.
     
@@ -37,7 +37,7 @@ def count_patients():
 
 
 @bp.get("")
-@require_permission(Permission.USER_READ)
+@require_permission(Permission.PATIENT_READ)
 @validate_query(
     {
         "page": Field(int, required=False, default=1, minimum=1),
@@ -56,7 +56,7 @@ def list_patients():
 
 
 @bp.post("")
-@require_permission(Permission.USER_MANAGE)
+@require_permission(Permission.PATIENT_MANAGE)
 @validate_body(
     {
         "full_name": Field(str, required=True, min_length=1, max_length=255),
@@ -95,14 +95,14 @@ def create_patient():
 
 
 @bp.get("/<int:patient_id>")
-@require_permission(Permission.USER_READ)
+@require_permission(Permission.PATIENT_READ)
 def get_patient(patient_id):
     patient = _patient_service.get_patient(patient_id)
     return success_response(patient.to_dict())
 
 
 @bp.patch("/<int:patient_id>")
-@require_permission(Permission.USER_MANAGE)
+@require_permission(Permission.PATIENT_MANAGE)
 @validate_body(
     {
         "full_name": Field(str, required=False, min_length=1, max_length=255),

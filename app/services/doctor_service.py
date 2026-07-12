@@ -1,12 +1,10 @@
 """Service quản lý bác sĩ - CRUD và các thao tác nghiệp vụ.
 
-Quy tắc phân quyền:
-  - ADMIN (role `admin`)            -> toàn quyền CRUD bác sĩ.
-  - DEPARTMENT_HEAD (role đó)       -> chỉ xem/sửa bác sĩ thuộc khoa mà user
-                                       đang làm trưởng (Department.head_doctor_id
-                                       == current_user.id).
-                                       Nếu chưa được gán làm trưởng khoa nào
-                                       -> 403, vì không xác định được phạm vi.
+Quy tắc phân quyền (sau refactor 1a2b3c4d5e6f):
+    - ADMIN (role `admin`) -> toàn quyền CRUD bác sĩ.
+    - STAFF (role `staff`) -> quản lý tất cả bác sĩ (không còn scope theo
+      khoa — khái niệm "trưởng khoa" đã bỏ, staff quản lý tất cả). Nếu FE
+      muốn giới hạn theo khoa, FE tự truyền filter `department_id` xuống BE.
 
 Luồng xử lý avatar trên R2:
   - Khi PATCH `avatar_object_key` đổi sang key mới / set về `null`, BE tự xóa
@@ -47,7 +45,12 @@ class DoctorService:
 
     @property
     def departments(self):
-        """Lazy-init DepartmentRepository để tránh tạo ngoài app context."""
+        """Lazy-init DepartmentRepository để tránh tạo ngoài app context.
+
+        Vẫn còn dùng cho các method nghiệp vụ (vd validate `department_id` khi
+        tạo bác sĩ), nhưng `resolve_doctor_scope` không còn dùng repo này
+        nữa vì scope đã được bỏ.
+        """
         if self._department_repo is None:
             self._department_repo = DepartmentRepository()
         return self._department_repo
@@ -55,15 +58,16 @@ class DoctorService:
     # === Phân quyền ===
     def _check_list_permission(self, actor):
         """Kiểm tra quyền xem danh sách bác sĩ."""
-        require_any(actor, Role.ADMIN, Role.DEPARTMENT_HEAD)
+        require_any(actor, Role.ADMIN, Role.STAFF)
 
     def _check_create_permission(self, actor):
         """Kiểm tra quyền tạo bác sĩ."""
-        require_any(actor, Role.ADMIN, Role.DEPARTMENT_HEAD)
+        require_any(actor, Role.ADMIN, Role.STAFF)
 
     def _check_update_permission(self, actor, doctor):
         """Kiểm tra quyền sửa bác sĩ (ưu tiên admin)."""
-        resolve_doctor_scope(actor, doctor, self.departments)
+        # Sau refactor 1a2b3c4d5e6f: staff cũng pass (không còn filter khoa).
+        resolve_doctor_scope(actor, doctor)
 
     def _check_delete_permission(self, actor):
         """Chỉ admin được xóa bác sĩ."""
@@ -71,7 +75,8 @@ class DoctorService:
 
     def _check_read_permission(self, actor, doctor):
         """Kiểm tra quyền đọc thông tin bác sĩ (ưu tiên admin)."""
-        resolve_doctor_scope(actor, doctor, self.departments)
+        # Sau refactor 1a2b3c4d5e6f: staff cũng pass (không còn filter khoa).
+        resolve_doctor_scope(actor, doctor)
 
     # === CRUD Operations ===
 
@@ -91,14 +96,30 @@ class DoctorService:
         department_id = data.get("department_id")
         department = self.departments.find_by_id(department_id)
         if not department:
-            raise ValidationException({"department_id": "not_found"})
+            raise ValidationException(
+                message_key="errors.department_not_found",
+                details={"department_id": "not_found"},
+            )
 
         # Check license number uniqueness if provided
         license_number = data.get("license_number")
         if license_number:
             existing = self.doctors.find_by_license_number(license_number)
             if existing:
-                raise ValidationException({"license_number": "duplicate"})
+                raise ValidationException(
+                    message_key="errors.doctor_duplicate_license",
+                    details={"license_number": "duplicate"},
+                )
+
+        # Check email uniqueness if provided
+        email = data.get("email")
+        if email:
+            existing = self.doctors.find_by_email(email)
+            if existing:
+                raise ValidationException(
+                    message_key="errors.doctor_duplicate_email",
+                    details={"email": "duplicate"},
+                )
 
         # Create doctor
         doctor = Doctor(
@@ -149,7 +170,7 @@ class DoctorService:
         """
         doctor = self.doctors.find_by_id(doctor_id)
         if not doctor:
-            raise NotFoundException("errors.not_found")
+            raise NotFoundException("errors.doctor_not_found")
 
         self._check_read_permission(actor, doctor)
         return doctor
@@ -167,7 +188,7 @@ class DoctorService:
         """
         doctor = self.doctors.find_by_id(doctor_id)
         if not doctor:
-            raise NotFoundException("errors.not_found")
+            raise NotFoundException("errors.doctor_not_found")
 
         self._check_update_permission(actor, doctor)
 
@@ -176,13 +197,29 @@ class DoctorService:
         if new_license and new_license != doctor.license_number:
             existing = self.doctors.find_by_license_number(new_license)
             if existing and existing.id != doctor_id:
-                raise ValidationException({"license_number": "duplicate"})
+                raise ValidationException(
+                    message_key="errors.doctor_duplicate_license",
+                    details={"license_number": "duplicate"},
+                )
+
+        # Check email uniqueness if changing
+        new_email = data.get("email")
+        if new_email and new_email != doctor.email:
+            existing = self.doctors.find_by_email(new_email)
+            if existing and existing.id != doctor_id:
+                raise ValidationException(
+                    message_key="errors.doctor_duplicate_email",
+                    details={"email": "duplicate"},
+                )
 
         # Validate department if changing
         if "department_id" in data:
             dept = self.departments.find_by_id(data["department_id"])
             if not dept:
-                raise ValidationException({"department_id": "not_found"})
+                raise ValidationException(
+                    message_key="errors.department_not_found",
+                    details={"department_id": "not_found"},
+                )
 
         # Snapshot avatar cũ trước khi gán (nếu có trong payload).
         old_avatar_key = doctor.avatar_object_key
@@ -249,7 +286,7 @@ class DoctorService:
         """
         doctor = self.doctors.find_by_id(doctor_id)
         if not doctor:
-            raise NotFoundException("errors.not_found")
+            raise NotFoundException("errors.doctor_not_found")
 
         self._check_delete_permission(actor)
 
@@ -272,7 +309,7 @@ class DoctorService:
         self._check_list_permission(actor)
 
         scoped_department_id = resolve_list_scope(
-            actor, self.departments, department_id
+            actor, department_id
         )
 
         items, total = self.doctors.paginate(
@@ -295,7 +332,7 @@ class DoctorService:
         self._check_list_permission(actor)
 
         scoped_department_id = resolve_list_scope(
-            actor, self.departments, department_id
+            actor, department_id
         )
 
         items, total = self.doctors.search(

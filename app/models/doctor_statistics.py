@@ -1,6 +1,10 @@
 """Model DoctorStatistics - Thống kê hoạt động của bác sĩ.
 
-Lưu trữ các chỉ số thống kê như số lượng lịch hẹn, điểm đánh giá, thời gian khám TB.
+Lưu trữ các chỉ số thống kê như số lượng lịch hẹn, thời gian khám TB.
+
+Sau refactor 1c2d3e4f5a6b (bỏ tính năng đánh giá): các field liên quan rating
+(``average_rating``, ``total_ratings``) và method ``recalculate_from_ratings``
+đã được gỡ khỏi model.
 """
 from datetime import datetime, timezone
 
@@ -26,9 +30,6 @@ class DoctorStatistics(db.Model):
     total_appointments = db.Column(db.Integer, default=0, nullable=False)
     completed_appointments = db.Column(db.Integer, default=0, nullable=False)
     cancelled_appointments = db.Column(db.Integer, default=0, nullable=False)
-    # Thống kê đánh giá
-    average_rating = db.Column(db.Float)  # Điểm TB (1-5)
-    total_ratings = db.Column(db.Integer, default=0, nullable=False)
     # Thống kê thời gian
     average_consultation_time_minutes = db.Column(db.Integer)  # Thời gian khám TB (phút)
     patient_satisfaction_score = db.Column(db.Float)  # Điểm hài lòng (0-100)
@@ -64,19 +65,6 @@ class DoctorStatistics(db.Model):
         self.cancelled_appointments = sum(1 for a in appointments if a.status == "cancelled")
         self.last_calculated_at = _now()
 
-    def recalculate_from_ratings(self):
-        """Tính lại thống kê đánh giá."""
-        from ..models.doctor_rating import DoctorRating
-
-        ratings = DoctorRating.query.filter_by(doctor_id=self.doctor_id).all()
-
-        if ratings:
-            self.average_rating = round(sum(r.rating for r in ratings) / len(ratings), 2)
-            self.total_ratings = len(ratings)
-        else:
-            self.average_rating = None
-            self.total_ratings = 0
-
     def to_dict(self):
         return {
             "id": self.id,
@@ -86,8 +74,6 @@ class DoctorStatistics(db.Model):
             "cancelled_appointments": self.cancelled_appointments,
             "completion_rate": self.completion_rate,
             "cancellation_rate": self.cancellation_rate,
-            "average_rating": self.average_rating,
-            "total_ratings": self.total_ratings,
             "average_consultation_time_minutes": self.average_consultation_time_minutes,
             "patient_satisfaction_score": self.patient_satisfaction_score,
             "last_calculated_at": self.last_calculated_at.isoformat() if self.last_calculated_at else None,

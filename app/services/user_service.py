@@ -47,3 +47,17 @@ class UserService:
             user.roles.remove(role)
             self.users.commit()
         return user
+
+    def search_users(self, keyword, page, size):
+        """Tìm kiếm user theo từ khóa trong email và full_name."""
+        return self.users.search(keyword, page, size)
+
+    def filter_users(
+        self,
+        page,
+        size,
+        role=None,
+        is_active=None,
+    ):
+        """Lọc user theo role và/hoặc trạng thái is_active."""
+        return self.users.filter(page, size, role=role, is_active=is_active)

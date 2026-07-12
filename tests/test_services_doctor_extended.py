@@ -162,7 +162,9 @@ class TestGetDoctor:
         with pytest.raises(NotFoundException):
             svc.get_doctor(actor=actor, doctor_id=999)
 
-    def test_dept_head_cannot_get_other_dept_doctor(self):
+    def test_staff_can_get_any_doctor(self):
+        # Sau refactor 1a2b3c4d5e6f: staff quản lý tất cả bác sĩ, không còn
+        # scope theo khoa. Staff đọc được bác sĩ thuộc bất kỳ khoa nào.
         doctor_repo = MagicMock()
         department_repo = MagicMock()
 
@@ -175,9 +177,9 @@ class TestGetDoctor:
             department_repository=department_repo,
         )
 
-        actor = _user(has_roles=[Role.DEPARTMENT_HEAD])
-        with pytest.raises(ForbiddenException):
-            svc.get_doctor(actor=actor, doctor_id=5)
+        actor = _user(has_roles=[Role.STAFF])
+        # Pass, không raise Forbidden.
+        svc.get_doctor(actor=actor, doctor_id=5)
 
 
 class TestUpdateDoctor:
@@ -212,14 +214,15 @@ class TestUpdateDoctor:
             department_repository=department_repo,
         )
 
-        actor = _user(has_roles=[Role.DEPARTMENT_HEAD])
+        actor = _user(has_roles=[Role.STAFF])
         data = {"title": "Phó khoa"}
 
         result = svc.update_doctor(actor=actor, doctor_id=1, data=data)
 
         doctor_repo.update.assert_called_once()
 
-    def test_dept_head_cannot_update_other_dept_doctor(self):
+    def test_staff_can_update_any_doctor(self):
+        # Sau refactor: staff quản lý tất cả, sửa được bác sĩ khoa khác.
         doctor_repo = MagicMock()
         department_repo = MagicMock()
 
@@ -227,17 +230,18 @@ class TestUpdateDoctor:
         department_repo.find_by_head_doctor_id.return_value = dept
         doctor = _doctor(id=5, department_id=99)
         doctor_repo.find_by_id.return_value = doctor
+        doctor_repo.update.return_value = doctor
 
         svc = DoctorService(
             doctor_repository=doctor_repo,
             department_repository=department_repo,
         )
 
-        actor = _user(has_roles=[Role.DEPARTMENT_HEAD])
+        actor = _user(has_roles=[Role.STAFF])
         data = {"title": "Trưởng khoa"}
 
-        with pytest.raises(ForbiddenException):
-            svc.update_doctor(actor=actor, doctor_id=5, data=data)
+        result = svc.update_doctor(actor=actor, doctor_id=5, data=data)
+        doctor_repo.update.assert_called_once()
 
     def test_update_license_number_to_existing_raises(self):
         doctor_repo = MagicMock()
@@ -300,7 +304,7 @@ class TestDeleteDoctor:
             department_repository=department_repo,
         )
 
-        actor = _user(has_roles=[Role.DEPARTMENT_HEAD])
+        actor = _user(has_roles=[Role.STAFF])
         with pytest.raises(ForbiddenException):
             svc.delete_doctor(actor=actor, doctor_id=1)
 
@@ -325,7 +329,10 @@ class TestSearchDoctors:
         doctor_repo.search.assert_called_once_with("cardio", 1, 20, department_id=None)
         assert total == 2
 
-    def test_dept_head_search_limited_to_own_dept(self):
+    def test_staff_search_passes_user_filter_through(self):
+        # Sau refactor 1a2b3c4d5e6f: staff không còn bị scope theo khoa, nên
+        # search_doctors() truyền nguyên filter xuống repository (department_id=None
+        # khi client không chỉ định, hoặc giá trị client gửi nếu có).
         doctor_repo = MagicMock()
         department_repo = MagicMock()
 
@@ -338,12 +345,12 @@ class TestSearchDoctors:
             department_repository=department_repo,
         )
 
-        actor = _user(has_roles=[Role.DEPARTMENT_HEAD])
+        actor = _user(has_roles=[Role.STAFF])
         items, total = svc.search_doctors(
             actor=actor, keyword="test", page=1, size=20
         )
 
-        doctor_repo.search.assert_called_once_with("test", 1, 20, department_id=5)
+        doctor_repo.search.assert_called_once_with("test", 1, 20, department_id=None)
 
 
 class TestExpiringLicenses:
@@ -362,7 +369,7 @@ class TestExpiringLicenses:
 
     def test_non_admin_cannot_get_expiring_licenses(self):
         svc, *_ = _make_doctor_service()
-        actor = _user(has_roles=[Role.DEPARTMENT_HEAD])
+        actor = _user(has_roles=[Role.STAFF])
 
         with pytest.raises(ForbiddenException):
             svc.get_expiring_licenses(actor=actor)

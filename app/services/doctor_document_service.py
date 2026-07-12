@@ -1,9 +1,9 @@
 """Service quản lý tài liệu bác sĩ.
 
-Quy tắc phân quyền (ưu tiên admin, dùng chung với `DoctorService`):
+Quy tắc phân quyền (sau refactor 1a2b3c4d5e6f, ưu tiên admin):
   - ADMIN                       -> quản lý tài liệu bác sĩ ở mọi khoa.
-  - DEPARTMENT_HEAD             -> chỉ trong khoa mà user đang làm trưởng.
-  - admin + department_head     -> admin thắng (xem/sửa mọi khoa).
+  - STAFF                       -> quản lý tất cả bác sĩ (không còn scope khoa).
+  - admin + staff               -> admin thắng (xem/sửa mọi khoa).
 
 Luồng xử lý object_key trên R2:
   - Khi PATCH `object_key` đổi sang key mới / set về `null`, BE tự xóa object
@@ -33,6 +33,8 @@ class DoctorDocumentService:
     ):
         self.documents = document_repository or DoctorDocumentRepository()
         self.doctors = doctor_repository or DoctorRepository()
+        # `department_repository` vẫn nhận để tương thích call-site cũ nhưng
+        # không còn được dùng trong scope check sau refactor 1a2b3c4d5e6f.
         self._department_repo = department_repository
 
     @property
@@ -45,22 +47,24 @@ class DoctorDocumentService:
     def _check_permission(self, actor, doctor_id):
         """Kiểm tra quyền truy cập tài liệu của một bác sĩ (ưu tiên admin).
 
-        Quy tắc:
+        Quy tắc (sau refactor 1a2b3c4d5e6f — staff quản lý tất cả bác sĩ):
           - admin                       -> pass ngay (mọi khoa, không cần load doctor).
-          - department_head             -> bác sĩ phải thuộc khoa của user.
-          - admin + department_head     -> rơi nhánh admin (pass ngay).
+          - staff                       -> pass (quản lý tất cả bác sĩ).
+          - admin + staff               -> rơi nhánh admin (pass ngay).
           - role khác                   -> 403.
           - doctor_id không tồn tại     -> 404.
         """
         # Admin không cần load doctor (ưu tiên admin).
-        # Department_head mới cần load để so sánh khoa.
+        # Staff mới cần load để kiểm tra doctor tồn tại (chỉ check existence,
+        # không còn filter khoa).
         doctor = None
         if actor is None or not actor.has_role(Role.ADMIN):
             doctor = self.doctors.find_by_id(doctor_id)
             if doctor is None:
                 raise NotFoundException("errors.not_found")
 
-        resolve_doctor_scope(actor, doctor, self.departments)
+        # Sau refactor: staff pass luôn, không còn check khoa.
+        resolve_doctor_scope(actor, doctor)
 
     def _check_admin_only(self, actor):
         """Chỉ admin được thực hiện (vd verify tài liệu)."""
@@ -116,8 +120,8 @@ class DoctorDocumentService:
         """Tạo mới tài liệu cho bác sĩ.
 
         Quy tắc `is_verified` mặc định:
-          - admin / department_head upload → tự động `True` (đã tin cậy).
-          - role khác upload → `False` (chờ admin verify).
+          - admin / staff upload  -> mặc định `True` (đã tin cậy).
+          - role khác upload       -> `False` (chờ admin verify).
           - Nếu client gửi `is_verified` trong body thì tôn trọng giá trị đó.
         """
         doctor = self.doctors.find_by_id(doctor_id)
@@ -137,19 +141,19 @@ class DoctorDocumentService:
             if existing:
                 raise ValidationException({
                     "document_type": "duplicate_license",
-                    "message": "Bác sĩ đã có giấy phép hành nghề. Vui lòng cập nhật tài liệu hiện có."
+                    "message": "Bác sĩ đã có giấy phép hành nghề. Vui lòng cập nhật tài liệu hiện có.",
                 })
 
         # Quyết định is_verified mặc định:
-        # - Actor là admin/department_head (đã được _check_permission duyệt ở trên) → True.
-        # - Ngược lại → False.
+        # - Actor là admin/staff (đã qua _check_permission duyệt rồi) -> True.
+        # - Ngược lại -> False.
         # Client có thể override bằng cách gửi `is_verified` trong body (vd khi import hàng loạt).
         if "is_verified" in data:
             is_verified = bool(data["is_verified"])
         else:
             is_verified = bool(
                 actor
-                and actor.has_role(Role.ADMIN, Role.DEPARTMENT_HEAD)
+                and actor.has_role(Role.ADMIN, Role.STAFF)
             )
 
         document = DoctorDocument(
@@ -163,8 +167,8 @@ class DoctorDocumentService:
         )
 
         self.documents.add(document)
-        # Commit để DB sinh `id`/`created_at` và ghi row vật lý — không commit thì
-        # response trả `id: null` và F5 lại trang sẽ không thấy tài liệu.
+        # Commit để DB sinh `id`/`created_at` và ghi row vật lý — nếu không commit thì
+        # response trả về `id: null` và FE lỗi trang sẽ không thấy tài liệu.
         self.documents.commit()
         return document
 
@@ -176,7 +180,7 @@ class DoctorDocumentService:
 
         self._check_permission(actor, doc.doctor_id)
 
-        # Snapshot key cũ trước khi gán — dùng để xóa object trên R2 sau commit.
+        # Snapshot key cũ trước khi gán — để xóa object trên R2 sau commit.
         old_object_key = doc.object_key
         new_object_key = data.get("object_key", old_object_key)
 
@@ -204,7 +208,7 @@ class DoctorDocumentService:
 
         self._check_permission(actor, doc.doctor_id)
 
-        # Snapshot key trước khi xoá.
+        # Snapshot key trước khi xóa.
         old_object_key = doc.object_key
         self.documents.delete(doc)
         # Cleanup R2 chạy SAU commit.

@@ -2,6 +2,7 @@ from .department import Department
 from .doctor import Doctor
 from .oauth_state import OAuthState
 from .rbac import Permission, Role, role_permissions, user_roles
+from .refresh_token import RefreshToken
 from .symptom_category import SymptomCategory
 from .symptom import Symptom
 from .symptom_department_map import SymptomDepartmentMap
@@ -16,13 +17,13 @@ from .booking_session import BookingSession, BookingSessionSymptom
 from .ai_recommendation import AIRecommendation
 from .appointment import Appointment, AppointmentStatusHistory
 from .doctor_document import DoctorDocument
-from .doctor_rating import DoctorRating
 from .doctor_statistics import DoctorStatistics
 
 __all__ = [
     "User",
     "OAuthState",
     "TokenBlacklist",
+    "RefreshToken",
     "Role",
     "Permission",
     "user_roles",
@@ -44,7 +45,6 @@ __all__ = [
     "Appointment",
     "AppointmentStatusHistory",
     "DoctorDocument",
-    "DoctorRating",
     "DoctorStatistics",
 ]
 
