@@ -3,12 +3,15 @@ import logging
 
 from sqlalchemy.exc import IntegrityError
 
-from ..common.roles import Role
-from ..errors import BadRequestException, ConflictException, NotFoundException
+from ..common.csv_export import build_csv
+from ..common.csv_schemas import (
+    doctor_column_keys,
+    doctor_header_labels,
+    format_doctor_row,
+)
+from ..errors import ConflictException, NotFoundException
 from ..models.department import Department
 from ..repositories.department_repository import DepartmentRepository
-from ..repositories.role_repository import RoleRepository
-from ..repositories.user_repository import UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -23,16 +26,118 @@ _UNSET = object()
 
 
 class DepartmentService:
-    def __init__(
-        self, department_repository=None, user_repository=None, role_repository=None
-    ):
+    def __init__(self, department_repository=None):
+        # Sau refactor 1a2b3c4d5e6f: bỏ head_doctor, không còn user/role repo.
         self.departments = department_repository or DepartmentRepository()
-        self.users = user_repository or UserRepository()
-        self.roles = role_repository or RoleRepository()
+
+    def get_department(self, department_id):
+        """Lấy thông tin 1 khoa. 404 nếu không thấy."""
+        department = self.departments.find_by_id(department_id)
+        if department is None:
+            raise NotFoundException("errors.department_not_found")
+        return department
+
+    def list_department_doctors(
+        self,
+        department_id,
+        page=1,
+        size=10,
+        q=None,
+        qualification=None,
+    ):
+        """Lấy danh sách bác sĩ thuộc 1 khoa, kèm `stats` (snapshot trong 1 roundtrip).
+
+        Trả về dict gồm:
+          - `stats`: tổng/đang hoạt động/tạm ngưng + bệnh nhân đang điều trị hôm nay.
+          - `doctors`: trang danh sách (theo `q` / `qualification`).
+          - `total`: tổng số doctor khớp filter (để client tính totalPage).
+
+        Mục đích: phục vụ màn "Chi tiết chuyên khoa" của FE — gộp stats + list
+        vào cùng response (1 transaction, đảm bảo tính nhất quán snapshot).
+        Xem `docs/FE_DEPARTMENT_DETAIL.md`.
+        """
+        department = self.departments.find_by_id(department_id)
+        if department is None:
+            raise NotFoundException("errors.department_not_found")
+
+        # 1) Stats — 1 SQL duy nhất.
+        total, active = self.departments.doctor_stats_by_status(department_id)
+        treating = self.departments.treating_patients_today(department_id)
+
+        # 2) Danh sách bác sĩ theo filter — repository đã hỗ trợ sẵn.
+        items, list_total = self.departments.list_doctors_for_department(
+            department_id,
+            page=page,
+            size=size,
+            q=q,
+            qualification=qualification,
+        )
+
+        return {
+            "stats": {
+                "total_doctors": total,
+                "active_doctors": active,
+                "inactive_doctors": max(total - active, 0),
+                "treating_patients": treating,
+            },
+            "doctors": items,
+            "total": list_total,
+        }
 
     def list_departments(self, page, size):
         """Danh sách khoa phân trang. Trả về (items, total)."""
         return self.departments.paginate(page, size)
+
+    # ------------------------------------------------------------------ #
+    #  Export CSV (xem docs/FE_DEPARTMENT_DETAIL.md §5)                 #
+    # ------------------------------------------------------------------ #
+
+    # Ngưỡng cảnh báo: số bác sĩ vượt mức này sẽ khiến file CSV rất lớn. Có
+    # thể raise / log; hiện tại chỉ dùng để metric, không chặn.
+    EXPORT_ROW_WARN_LIMIT = 5_000
+
+    def export_department_doctors_csv(
+        self,
+        department_id,
+        q=None,
+        qualification=None,
+    ):
+        """Sinh CSV chứa toàn bộ bác sĩ thuộc 1 khoa.
+
+        Trả về tuple `(csv_text, department, total_rows)`:
+          - `csv_text`: chuỗi CSV đã được escape đúng chuẩn RFC 4180, có BOM
+            UTF-8 để Excel mở đúng tiếng Việt.
+          - `department`: object Department (để controller dùng cho filename).
+          - `total_rows`: số dòng dữ liệu (chưa tính header).
+
+        Schema cột được khai báo tập trung ở `app.common.csv_schemas` (gom theo
+        từng phần nghiệp vụ của Doctor: phần 1 cá nhân, phần 2 chuyên môn, phần 5
+        hành chính). Mỗi cột có nhãn tiếng Việt + key EN trong ngoặc, date hiển
+        thị dd/mm/yyyy, bool render "Có"/"Không".
+
+        Field bị loại khỏi export (và lý do):
+          - `avatar_url`, `avatar_object_key`: ảnh không cần trong bảng phẳng;
+            nếu cần hiển thị FE có thể tự gọi presign GET kèm object_key.
+          - `documents`, `statistics`: quan hệ nặng, không phù hợp bảng.
+          - `department` (object): đã ngầm biết vì export theo khoa.
+          - (Tính năng đánh giá đã bỏ ở refactor 1c2d3e4f5a6b nên không còn `ratings`.)
+        """
+        from ..models.doctor import Doctor  # noqa: F401  (giữ import để type-hint)
+
+        department = self.departments.find_by_id(department_id)
+        if department is None:
+            raise NotFoundException("errors.department_not_found")
+
+        doctors = self.departments.list_all_doctors_for_department(
+            department_id, q=q, qualification=qualification
+        )
+
+        columns = doctor_column_keys()
+        header_labels = doctor_header_labels()
+        rows = [format_doctor_row(d.to_dict()) for d in doctors]
+
+        csv_text = build_csv(columns, header_labels, rows)
+        return csv_text, department, len(rows)
 
     def get_stats(self):
         """Thống kê số lượng khoa: tổng, đang hoạt động, tạm dừng."""
@@ -47,26 +152,15 @@ class DepartmentService:
         keywords=None,
         conditions=None,
         ai_metadata=None,
-        head_doctor_id=None,
         is_active=False,
     ):
-        # 1. Nếu chỉ định trưởng khoa: phải tồn tại và phải đang là bác sĩ.
-        head = None
-        if head_doctor_id is not None:
-            head = self.users.find_by_id(head_doctor_id)
-            if head is None:
-                raise NotFoundException("errors.head_doctor_not_found")
-            if not head.has_role(Role.DOCTOR):
-                raise BadRequestException("errors.head_doctor_not_doctor")
+        # Sau refactor 1a2b3c4d5e6f: bỏ head_doctor_id và việc auto-grant role
+        # staff kèm trưởng khoa. Staff giờ quản lý tất cả bác sĩ trong khoa nên
+        # không cần "bổ nhiệm" trưởng khoa nữa. `is_active` do client quyết định
+        # trực tiếp, mặc định False.
 
-        # 2. Nghiệp vụ: bật khoa (`is_active=True`) chỉ hợp lệ khi đã chọn được
-        #    một trưởng khoa hợp lệ. Đây là ràng buộc giữa 2 field nên được kiểm
-        #    tra ở service (raise 400), không phải ở tầng validation 422.
-        if is_active and head is None:
-            raise BadRequestException("errors.head_required_when_active")
-
-        # 3. Sinh mã "CK-NNN" duy nhất do hệ thống cấp. Thử lại nếu đụng độ unique
-        #    do hai request tạo khoa cùng lúc cùng tính ra một số thứ tự.
+        # Sinh mã "CK-NNN" duy nhất do hệ thống cấp. Thử lại nếu đụng độ unique
+        # do hai request tạo khoa cùng lúc cùng tính ra một số thứ tự.
         for _ in range(_MAX_CODE_RETRIES):
             department = Department(
                 code=self._next_code(),
@@ -76,17 +170,12 @@ class DepartmentService:
                 keywords=keywords or [],
                 conditions=conditions or [],
                 ai_metadata=ai_metadata or {},
-                head_doctor_id=head.id if head else None,
                 is_active=is_active,
             )
             self.departments.add(department)
 
-            # Auto-grant role department_head cho trưởng khoa (idempotent).
-            if head is not None:
-                self._grant_department_head(head)
-
             try:
-                # Commit chung 1 transaction cho cả tạo khoa + cấp role.
+                # Commit 1 transaction cho cả tạo khoa.
                 self.departments.commit()
                 return department
             except IntegrityError:
@@ -108,12 +197,13 @@ class DepartmentService:
         conditions=_UNSET,
         techniques=_UNSET,
         ai_metadata=_UNSET,
-        head_doctor_id=_UNSET,
+        is_active=_UNSET,
     ):
         """Cập nhật từng phần một khoa. Chỉ các field được truyền mới thay đổi.
 
-        Mã khoa (`code`) là cố định, không cho sửa. Khi đổi trưởng khoa thì
-        `is_active` được tính lại theo quy tắc iff (true ⇔ có trưởng khoa).
+        Mã khoa (`code`) là cố định, không cho sửa. `head_doctor_id` đã bỏ theo
+        refactor 1a2b3c4d5e6f — staff giờ quản lý tất cả bác sĩ trong khoa,
+        không cần gắn một user/doctor cụ thể làm "trưởng".
 
         `avatar_object_key` được ưu tiên hơn `avatar_url`: khi set object_key
         thì cũng xoá cache URL cũ để buộc BE sinh lại presigned GET lần kế.
@@ -122,20 +212,6 @@ class DepartmentService:
         department = self.departments.find_by_id(department_id)
         if department is None:
             raise NotFoundException("errors.department_not_found")
-
-        # Đổi trưởng khoa -> kéo theo cập nhật is_active (true ⇔ có trưởng khoa).
-        if head_doctor_id is not _UNSET:
-            head = None
-            if head_doctor_id is not None:
-                head = self.users.find_by_id(head_doctor_id)
-                if head is None:
-                    raise NotFoundException("errors.head_doctor_not_found")
-                if not head.has_role(Role.DOCTOR):
-                    raise BadRequestException("errors.head_doctor_not_doctor")
-            department.head_doctor_id = head.id if head else None
-            department.is_active = head is not None
-            if head is not None:
-                self._grant_department_head(head)
 
         if name is not _UNSET:
             department.name = name
@@ -166,6 +242,9 @@ class DepartmentService:
             department.techniques = techniques
         if ai_metadata is not _UNSET:
             department.ai_metadata = ai_metadata
+        if is_active is not _UNSET:
+            # FE có thể bật/tắt khoa trực tiếp (không còn ràng buộc với head_doctor).
+            department.is_active = is_active
 
         self.departments.commit()
         # Cleanup R2 chạy SAU commit: nếu commit fail thì DB vẫn giữ key cũ,
@@ -203,7 +282,5 @@ class DepartmentService:
         """Mã chuyên khoa kế tiếp dạng `CK-NNN` (NNN >= 001, zero-pad 3 chữ số)."""
         return f"{_CODE_PREFIX}{self.departments.max_code_number(_CODE_PREFIX) + 1:03d}"
 
-    def _grant_department_head(self, user):
-        role = self.roles.find_by_name(Role.DEPARTMENT_HEAD)
-        if role is not None and role not in user.roles:
-            user.roles.append(role)
+    # `_grant_department_head` đã bỏ theo refactor 1a2b3c4d5e6f — staff quản
+    # lý tất cả bác sĩ nên không cần auto-grant role staff khi gán head_doctor.

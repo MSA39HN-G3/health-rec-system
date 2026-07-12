@@ -20,6 +20,7 @@ from ...middleware import (
     validated,
     validated_query,
 )
+from ...services.auth_service import AuthService
 from ...services.role_service import RoleService
 from ...services.user_service import UserService
 
@@ -27,6 +28,7 @@ bp = Blueprint("admin", __name__, url_prefix="/api/v1/admin")
 
 _user_service = UserService()
 _role_service = RoleService()
+_auth_service = AuthService()
 
 
 # ----------------------------- Quản lý user ------------------------------
@@ -187,3 +189,26 @@ def remove_role_permission(role_id, permission_name):
 def list_permissions():
     perms = _role_service.list_permissions()
     return success_response([p.to_dict() for p in perms])
+
+
+# ------------------------- Token introspection (admin) ----------------------
+#
+# Cho phép admin kiểm tra trạng thái bất kỳ token nào của user (active/revoked/expired).
+# Dùng khi debug "user bảo token vẫn còn nhưng request bị 403" hoặc khi revoke sạch
+# các phiên của user bị vô hiệu hóa.
+# Cần `user:read` (chỉ admin mặc định có).
+
+@bp.post("/auth/introspect")
+@require_permission(Permission.USER_READ)
+@validate_body({"token": Field(str, required=True, min_length=1)})
+def admin_introspect_token():
+    """Admin introspect một token bất kỳ để kiểm tra trạng thái active.
+
+    Body: `{ "token": "<JWT>" }`
+    Trả về cùng cấu trúc như `/api/v1/auth/introspect`, nhưng có thêm audit
+    thông tin về người gọi (`audited_by`) để truy vết trong log nếu cần.
+    """
+    data = validated()
+    result = _auth_service.introspect_token(data["token"])
+    result["audited_by"] = current_user().id
+    return success_response(result)

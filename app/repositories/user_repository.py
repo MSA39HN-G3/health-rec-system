@@ -1,4 +1,5 @@
 from ..extensions import db
+from ..models.rbac import Role, user_roles
 from ..models.user import User
 
 
@@ -53,10 +54,7 @@ class UserRepository:
         q = User.query.order_by(User.id)
 
         if role is not None:
-            q = q.join(User.roles).filter(
-                db.func.lower(db.cast(db.nullslast(User.roles.name), db.String))
-                == role.lower()
-            ).distinct()
+            q = q.filter(User.roles.any(Role.name.ilike(role)))
 
         if is_active is not None:
             q = q.filter(User.is_active == is_active)

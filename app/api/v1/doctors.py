@@ -130,8 +130,7 @@ def get_doctor(doctor_id):
         doctor_id=doctor_id,
     )
     include_stats = request.args.get("include_stats", "false").lower() == "true"
-    include_ratings = request.args.get("include_ratings", "false").lower() == "true"
-    return success_response(doctor.to_dict(include_stats=include_stats, include_ratings=include_ratings))
+    return success_response(doctor.to_dict(include_stats=include_stats))
 
 
 # === UPDATE ===

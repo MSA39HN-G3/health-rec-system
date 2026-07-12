@@ -33,6 +33,9 @@ class BaseConfig:
     JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
     # Thời gian sống của access token (giây). Mặc định 3600 = 1 giờ.
     JWT_EXPIRES = int(os.getenv("JWT_EXPIRES", "3600"))
+    # Thời gian sống của refresh token (giây). Mặc định 1209600 = 14 ngày.
+    # Khi refresh, token cũ bị thu hồi (rotation) + cấp token mới.
+    JWT_REFRESH_EXPIRES = int(os.getenv("JWT_REFRESH_EXPIRES", str(14 * 24 * 3600)))
 
     GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
     GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")

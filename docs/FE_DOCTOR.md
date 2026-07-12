@@ -14,14 +14,14 @@ Module quản lý bác sĩ bao gồm đầy đủ CRUD, quản lý tài liệu, 
 
 | Action | Permission | Roles |
 |--------|------------|-------|
-| Xem danh sách / chi tiết bác sĩ | `department:manage` | admin, department_head |
-| Tạo / Sửa / Xóa bác sĩ | `department:manage` | admin, department_head |
-| Quản lý tài liệu | `department:manage` | admin, department_head |
-| Xem thống kê | `department:manage` | admin, department_head |
+| Xem danh sách / chi tiết bác sĩ | `department:manage` | admin, staff |
+| Tạo / Sửa / Xóa bác sĩ | `department:manage` | admin, staff |
+| Quản lý tài liệu | `department:manage` | admin, staff |
+| Xem thống kê | `department:manage` | admin, staff |
 | Tính lại thống kê | `department:manage` | admin only |
-| Tạo/Sửa đánh giá | `rating:write` | admin, patient |
-| Xem đánh giá | `rating:read` | admin, doctor, patient |
-| Xóa đánh giá | `department:manage` | admin only |
+
+> ⚠️ **Tính năng đánh giá đã bị xóa** (refactor 1c2d3e4f5a6b). Role `patient` và
+> 3 permission `rating:*` không còn tồn tại. FE cần dọn các màn hình liên quan.
 
 > FE nên gate menu/nút "Quản lý Bác sĩ" theo `hasPermission("department:manage")`.
 
@@ -190,7 +190,6 @@ Cần permission `department:manage`.
 | Query | Mô tả |
 |-------|--------|
 | `include_stats` | `true` để include thống kê |
-| `include_ratings` | `true` để include đánh giá (limit 20) |
 
 ```jsonc
 // GET /api/v1/doctors/1?include_stats=true
@@ -202,9 +201,7 @@ Cần permission `department:manage`.
     // ... all fields
     "statistics": {
       "total_appointments": 150,
-      "completed_appointments": 140,
-      "average_rating": 4.5,
-      "total_ratings": 50
+      "completed_appointments": 140
     }
   }
 }
@@ -738,11 +735,11 @@ export function useDoctorDocumentUpload(doctorId: number) {
 | `cancelled_appointments` | int | Lịch hẹn hủy |
 | `completion_rate` | float | Tỷ lệ hoàn thành (%) |
 | `cancellation_rate` | float | Tỷ lệ hủy (%) |
-| `average_rating` | float | Điểm TB (1-5) |
-| `total_ratings` | int | Số lượt đánh giá |
 | `average_consultation_time_minutes` | int | Thời gian khám TB (phút) |
 | `patient_satisfaction_score` | float | Điểm hài lòng (0-100) |
 | `last_calculated_at` | string (ISO) | Thời điểm tính cuối |
+
+> ⚠️ Từ 1c2d3e4f5a6b, các trường `average_rating`, `total_ratings` đã bị xóa.
 
 ### 11.2 Xem thống kê — `GET /api/v1/doctors/{id}/statistics`
 
@@ -756,8 +753,6 @@ export function useDoctorDocumentUpload(doctorId: number) {
     "cancelled_appointments": 10,
     "completion_rate": 93.33,
     "cancellation_rate": 6.67,
-    "average_rating": 4.5,
-    "total_ratings": 50,
     "average_consultation_time_minutes": 15,
     "patient_satisfaction_score": 92.5,
     "last_calculated_at": "2026-07-09T10:00:00+00:00"
@@ -771,12 +766,16 @@ Chỉ admin. Tính lại từ dữ liệu thực tế.
 
 ### 11.4 Top bác sĩ — `GET /api/v1/doctors/statistics/top-rated`
 
+> ⚠️ Từ 1c2d3e4f5a6b, endpoint này giữ URL để không phá client, nhưng response
+> đã đổi sang "nhiều lịch hẹn nhất" (alias của `/most-active`). Không còn dữ
+> liệu rating.
+
 ```jsonc
 // GET /api/v1/doctors/statistics/top-rated?limit=10
 {
   "status": "success",
   "data": [
-    { "doctor_id": 1, "average_rating": 4.9, "total_ratings": 100 }
+    { "doctor_id": 1, "total_appointments": 500, "completed_appointments": 480 }
   ]
 }
 ```
@@ -795,88 +794,20 @@ Chỉ admin. Tính lại từ dữ liệu thực tế.
 
 ---
 
-## 13. Đánh giá Bác sĩ
+## 13. Đánh giá Bác sĩ — **ĐÃ BỎ** (refactor 1c2d3e4f5a6b)
 
-### 12.1 Mô hình DoctorRating
+Tính năng đánh giá bác sĩ (model `DoctorRating`, 5 endpoints CRUD, 3 permission
+`rating:*`) đã bị xóa hoàn toàn. Lý do: bệnh nhân không còn đăng nhập/đánh giá
+trên hệ thống (chỉ phục vụ nhân viên + admin).
 
-| Trường | Kiểu | Ý nghĩa |
-|--------|------|----------|
-| `id` | int | Khóa chính |
-| `doctor_id` | int | FK tới Doctor |
-| `patient_id` | int | FK tới Patient |
-| `patient` | object | `{id, full_name}` |
-| `appointment_id` | int | FK tới Appointment (nullable) |
-| `rating` | int | 1-5 sao |
-| `comment` | string | Nhận xét (≤2000) |
-| `created_at` / `updated_at` | string (ISO) | Thời điểm tạo/cập nhật |
+**FE cần dọn:**
+- Bỏ các màn hình: danh sách đánh giá, form tạo/sửa đánh giá, phân bố rating.
+- Bỏ mọi import / call tới API `/api/v1/ratings*` và `/api/v1/doctors/{id}/ratings`.
+- Bỏ field `include_ratings` query param (đã bị BE bỏ).
+- Bỏ render `average_rating` / `total_ratings` trong UI thống kê.
 
-### 12.2 Tạo đánh giá — `POST /api/v1/ratings`
-
-Cần permission `rating:write`.
-
-```jsonc
-{
-  "doctor_id": 1,              // bắt buộc
-  "patient_id": 1,             // bắt buộc
-  "appointment_id": 10,        // tùy chọn
-  "rating": 5,                // bắt buộc (1-5)
-  "comment": "Bác sĩ rất tận tâm, khám kỹ lưỡng."
-}
-```
-
-> Mỗi lịch hẹn chỉ được đánh giá **1 lần**.
-
-### 12.3 Xem đánh giá của bác sĩ — `GET /api/v1/doctors/{id}/ratings`
-
-Cần permission `rating:read`.
-
-```jsonc
-{
-  "status": "success",
-  "data": [
-    {
-      "id": 1,
-      "rating": 5,
-      "comment": "Bác sĩ rất tận tâm",
-      "patient": { "id": 1, "full_name": "Nguyen Thi B" },
-      "created_at": "2026-07-09T10:00:00+00:00"
-    }
-  ],
-  "meta": { "page": 1, "size": 20, "totalPage": 3 }
-}
-```
-
-### 12.4 Phân bố đánh giá — `GET /api/v1/doctors/{id}/ratings/distribution`
-
-**Public endpoint** — không cần auth.
-
-```jsonc
-{
-  "status": "success",
-  "data": {
-    "1": 2,   // 1 sao: 2 đánh giá
-    "2": 5,   // 2 sao: 5 đánh giá
-    "3": 10,
-    "4": 30,
-    "5": 53   // 5 sao: 53 đánh giá
-  }
-}
-```
-
-### 12.5 Cập nhật đánh giá — `PATCH /api/v1/ratings/{id}`
-
-Chỉ người tạo hoặc admin được sửa.
-
-```jsonc
-{
-  "rating": 4,
-  "comment": "Cập nhật: bác sĩ vẫn tốt nhưng chờ lâu."
-}
-```
-
-### 12.6 Xóa đánh giá — `DELETE /api/v1/ratings/{id}`
-
-Chỉ admin.
+Migration `1c2d3e4f5a6b` đã drop bảng `doctor_ratings` + 2 cột rating trên
+`doctor_statistics` + xóa role `patient` + 3 permission `rating:*`.
 
 ---
 
@@ -919,19 +850,12 @@ Chỉ admin.
 |--------|------|------------|--------|
 | `GET` | `/api/v1/doctors/{id}/statistics` | `department:manage` | Xem thống kê |
 | `POST` | `/api/v1/doctors/{id}/statistics/recalculate` | `department:manage` | Tính lại thống kê |
-| `GET` | `/api/v1/doctors/statistics/top-rated` | `department:manage` | Top bác sĩ đánh giá cao |
+| `GET` | `/api/v1/doctors/statistics/top-rated` | `department:manage` | Top bác sĩ (alias của `/most-active` sau khi bỏ rating) |
 | `GET` | `/api/v1/doctors/statistics/most-active` | `department:manage` | Top bác sĩ nhiều lịch hẹn |
 
 ### Ratings
 
-| Method | Path | Permission | Mô tả |
-|--------|------|------------|--------|
-| `POST` | `/api/v1/ratings` | `rating:write` | Tạo đánh giá |
-| `GET` | `/api/v1/doctors/{id}/ratings` | `rating:read` | Xem đánh giá |
-| `GET` | `/api/v1/doctors/{id}/ratings/distribution` | public | Phân bố đánh giá |
-| `GET` | `/api/v1/ratings/{id}` | `rating:read` | Chi tiết đánh giá |
-| `PATCH` | `/api/v1/ratings/{id}` | `rating:write` | Cập nhật đánh giá |
-| `DELETE` | `/api/v1/ratings/{id}` | `department:manage` | Xóa đánh giá |
+> Tính năng đánh giá đã bị xóa (xem §13). Không còn endpoint nào ở đây.
 
 ---
 

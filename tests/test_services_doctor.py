@@ -70,52 +70,46 @@ class TestListDoctors:
             "label": "Khoa #42",
         }
 
-    def test_dept_head_with_department(self):
+    def test_staff_sees_all_when_no_filter(self):
+        # Sau refactor 1a2b3c4d5e6f: staff quản lý tất cả bác sĩ, không còn
+        # bị scope về khoa của "trưởng khoa". Staff thấy tất cả khoa, FE tự filter.
         svc, dr, deptr, _ = _doctor_service()
-        dept = MagicMock()
-        dept.id = 9
-        dept.name = "Khoa A"
-        deptr.find_by_head_doctor_id.return_value = dept
-        # Service cũng gọi find_by_id(9) để lấy name cho scope label.
-        deptr.find_by_id.return_value = dept
+        dr.paginate.return_value = ([MagicMock(), MagicMock()], 2)
+        actor = _user(has_roles=[Role.STAFF])
+
+        items, total, scope = svc.list_doctors(actor=actor, page=1, size=10)
+        dr.paginate.assert_called_once_with(1, 10, department_id=None)
+        assert total == 2
+
+    def test_staff_can_filter_by_department(self):
+        # Sau refactor: staff có thể filter theo bất kỳ khoa nào FE yêu cầu.
+        svc, dr, _, _ = _doctor_service()
         dr.paginate.return_value = ([MagicMock()], 1)
+        actor = _user(has_roles=[Role.STAFF])
 
-        actor = _user(has_roles=[Role.DEPARTMENT_HEAD])
         items, total, scope = svc.list_doctors(
-            actor=actor, page=1, size=10
+            actor=actor, page=1, size=10, department_id=42
         )
-        dr.paginate.assert_called_once_with(1, 10, department_id=9)
-        assert scope == {
-            "type": "department",
-            "department_id": 9,
-            "label": "Khoa A",
-        }
+        dr.paginate.assert_called_once_with(1, 10, department_id=42)
 
-    def test_dept_head_without_department_raises_403(self):
-        svc, _, deptr, _ = _doctor_service()
-        deptr.find_by_head_doctor_id.return_value = None
-        actor = _user(has_roles=[Role.DEPARTMENT_HEAD])
-        with pytest.raises(ForbiddenException):
-            svc.list_doctors(actor=actor, page=1, size=10)
-
-    def test_dept_head_other_department_raises_403(self):
-        svc, _, deptr, _ = _doctor_service()
-        dept = MagicMock()
-        dept.id = 9
-        deptr.find_by_head_doctor_id.return_value = dept
-        actor = _user(has_roles=[Role.DEPARTMENT_HEAD])
-        with pytest.raises(ForbiddenException):
-            svc.list_doctors(
-                actor=actor, page=1, size=10, department_id=99
-            )
-
-    def test_dept_head_passed_their_own_department(self):
+    def test_staff_other_department_allowed(self):
+        # Sau refactor: staff không còn bị giới hạn khoa, được filter khoa khác.
         svc, dr, deptr, _ = _doctor_service()
-        dept = MagicMock()
-        dept.id = 9
-        deptr.find_by_head_doctor_id.return_value = dept
+        deptr.find_by_head_doctor_id.return_value = MagicMock(id=9)
         dr.paginate.return_value = ([], 0)
-        actor = _user(has_roles=[Role.DEPARTMENT_HEAD])
+        actor = _user(has_roles=[Role.STAFF])
+
+        items, total, scope = svc.list_doctors(
+            actor=actor, page=1, size=10, department_id=99
+        )
+        # Không raise, filter theo đúng khoa client gửi.
+        dr.paginate.assert_called_once_with(1, 10, department_id=99)
+
+    def test_staff_passed_their_own_department(self):
+        svc, dr, deptr, _ = _doctor_service()
+        deptr.find_by_head_doctor_id.return_value = MagicMock(id=9)
+        dr.paginate.return_value = ([], 0)
+        actor = _user(has_roles=[Role.STAFF])
 
         items, total, scope = svc.list_doctors(
             actor=actor, page=1, size=10, department_id=9
@@ -123,86 +117,60 @@ class TestListDoctors:
         dr.paginate.assert_called_once_with(1, 10, department_id=9)
         assert total == 0
 
-    def test_admin_and_dept_head_prioritises_admin(self):
-        """User có cả admin + department_head -> admin "thắng", được
-        xem mọi khoa (không bị giới hạn bởi khoa của dept_head)."""
+    def test_admin_and_staff_prioritises_admin(self):
+        """User có cả admin + staff -> admin "thắng", được xem mọi khoa
+        (không bị giới hạn bởi khoa nào cả)."""
         svc, dr, deptr, _ = _doctor_service()
-        # dept_head của khoa 9 nhưng actor cũng có admin.
-        my_dept = MagicMock(id=9)
-        deptr.find_by_head_doctor_id.return_value = my_dept
         dr.paginate.return_value = ([MagicMock(), MagicMock(), MagicMock()], 3)
-        actor = _user(has_roles=[Role.ADMIN, Role.DEPARTMENT_HEAD])
+        actor = _user(has_roles=[Role.ADMIN, Role.STAFF])
 
         # Client filter department_id=42 (khoa khác) -> admin vẫn pass.
         items, total, scope = svc.list_doctors(
             actor=actor, page=1, size=10, department_id=42
         )
         dr.paginate.assert_called_once_with(1, 10, department_id=42)
-        assert scope["type"] == "department"
-        assert scope["department_id"] == 42
 
         # Không filter -> thấy tất cả.
         items, total, scope = svc.list_doctors(actor=actor, page=1, size=10)
         dr.paginate.assert_called_with(1, 10, department_id=None)
-        assert scope["type"] == "all"
         assert total == 3
 
 
 class TestUpdatePermission:
-    """Kiểm tra `_check_update_permission` với ưu tiên admin."""
+    """Kiểm tra `_check_update_permission` với ưu tiên admin.
+
+    Sau refactor 1a2b3c4d5e6f: staff quản lý tất cả bác sĩ, không còn bị
+    scope theo khoa. Mọi test cũ về "dept_head_can_update_their_department"
+    đã được đổi thành staff pass luôn.
+    """
 
     def test_admin_can_update_any_doctor(self):
         svc, _, deptr, _ = _doctor_service()
-        # Admin -> pass ngay, không cần truy vấn department_repo.
+        # Admin -> pass ngay.
         actor = _user(has_roles=[Role.ADMIN])
         any_doctor = MagicMock(department_id=999)  # khác khoa
         svc._check_update_permission(actor, any_doctor)
-        deptr.find_by_head_doctor_id.assert_not_called()
 
-    def test_dept_head_can_update_their_department(self):
-        svc, _, deptr, _ = _doctor_service()
-        my_dept = MagicMock(id=9)
-        deptr.find_by_head_doctor_id.return_value = my_dept
-        doctor = MagicMock(department_id=9)
-        actor = _user(has_roles=[Role.DEPARTMENT_HEAD])
+    def test_staff_can_update_any_doctor(self):
+        # Sau refactor: staff pass luôn, không còn scope khoa.
+        svc, _, _, _ = _doctor_service()
+        actor = _user(has_roles=[Role.STAFF])
+        any_doctor = MagicMock(department_id=999)
+        svc._check_update_permission(actor, any_doctor)
 
-        svc._check_update_permission(actor, doctor)  # pass
-        deptr.find_by_head_doctor_id.assert_called_once_with(actor.id)
-
-    def test_dept_head_cannot_update_other_department(self):
-        svc, _, deptr, _ = _doctor_service()
-        my_dept = MagicMock(id=9)
-        deptr.find_by_head_doctor_id.return_value = my_dept
-        doctor = MagicMock(department_id=42)  # khoa khác
-        actor = _user(has_roles=[Role.DEPARTMENT_HEAD])
-
-        with pytest.raises(ForbiddenException):
-            svc._check_update_permission(actor, doctor)
-
-    def test_admin_and_dept_head_prioritises_admin(self):
-        """User vừa admin vừa dept_head -> admin thắng, sửa được bác sĩ
+    def test_admin_and_staff_prioritises_admin(self):
+        """User vừa admin vừa staff -> admin thắng, sửa được bác sĩ
         thuộc khoa khác khoa mình đang trưởng."""
-        svc, _, deptr, _ = _doctor_service()
-        my_dept = MagicMock(id=9)
-        deptr.find_by_head_doctor_id.return_value = my_dept
-        doctor = MagicMock(department_id=42)  # khác khoa mình
-        actor = _user(has_roles=[Role.ADMIN, Role.DEPARTMENT_HEAD])
+        svc, _, _, _ = _doctor_service()
+        doctor = MagicMock(department_id=42)
+        actor = _user(has_roles=[Role.ADMIN, Role.STAFF])
 
-        # Pass ngay, KHONG gọi find_by_head_doctor_id.
+        # Pass ngay.
         svc._check_update_permission(actor, doctor)
-        deptr.find_by_head_doctor_id.assert_not_called()
 
     def test_no_role_raises_403(self):
         svc, *_ = _doctor_service()
         actor = _user(has_roles=[])
-        doctor = MagicMock(department_id=1)
-        with pytest.raises(ForbiddenException):
-            svc._check_update_permission(actor, doctor)
-
-    def test_dept_head_without_department_raises_403(self):
-        svc, _, deptr, _ = _doctor_service()
-        deptr.find_by_head_doctor_id.return_value = None
-        actor = _user(has_roles=[Role.DEPARTMENT_HEAD])
         doctor = MagicMock(department_id=1)
         with pytest.raises(ForbiddenException):
             svc._check_update_permission(actor, doctor)
@@ -250,6 +218,57 @@ class TestCreateDoctorValidation:
                 actor=actor,
                 data={"full_name": "A", "department_id": 999},
             )
+
+    def test_create_doctor_duplicate_email(self):
+        """Tạo bác sĩ với email đã thuộc bác sĩ khác -> 422 doctor_duplicate_email."""
+        svc = DoctorService(
+            doctor_repository=MagicMock(),
+            department_repository=MagicMock(),
+            role_repository=MagicMock(),
+        )
+        svc.departments.find_by_id.return_value = MagicMock(id=1)
+        svc.doctors.find_by_email.return_value = MagicMock(id=42)
+        actor = _user(has_roles=[Role.ADMIN])
+
+        from app.errors import ValidationException
+
+        with pytest.raises(ValidationException) as exc_info:
+            svc.create_doctor(
+                actor=actor,
+                data={
+                    "full_name": "B",
+                    "department_id": 1,
+                    "email": "dup@example.com",
+                },
+            )
+        # i18n message_key phải trỏ tới errors.doctor_duplicate_email
+        assert exc_info.value.message_key == "errors.doctor_duplicate_email"
+        assert exc_info.value.details == {"email": "duplicate"}
+
+    def test_create_doctor_email_case_insensitive(self):
+        """Tìm email không phân biệt hoa thường — 'A@x.com' đụng 'a@x.com'."""
+        svc = DoctorService(
+            doctor_repository=MagicMock(),
+            department_repository=MagicMock(),
+            role_repository=MagicMock(),
+        )
+        svc.departments.find_by_id.return_value = MagicMock(id=1)
+        # repo được gọi với email đã chuẩn hoá (lowercase)
+        svc.doctors.find_by_email.return_value = MagicMock(id=42)
+        actor = _user(has_roles=[Role.ADMIN])
+
+        from app.errors import ValidationException
+
+        with pytest.raises(ValidationException):
+            svc.create_doctor(
+                actor=actor,
+                data={
+                    "full_name": "C",
+                    "department_id": 1,
+                    "email": "DUP@Example.COM",
+                },
+            )
+        svc.doctors.find_by_email.assert_called_once_with("DUP@Example.COM")
 
 
 class TestUpdateDoctorValidation:
@@ -338,6 +357,130 @@ class TestUpdateDoctorValidation:
             )
         cleanup.assert_called_once_with("old/a.jpg", "new/a.jpg")
 
+    def test_update_doctor_avatar_idempotent(self):
+        """Gửi cùng avatar key hiện tại -> _cleanup_old_avatar chạy nhưng
+        không gọi storage.delete_object (idempotent — không xóa R2)."""
+        svc, dr, _ = self._setup()
+        doctor = MagicMock(
+            license_number="X",
+            department_id=1,
+            avatar_object_key="same/a.jpg",
+            avatar_url="presigned-url",
+        )
+        dr.find_by_id.return_value = doctor
+        actor = _user(has_roles=[Role.ADMIN])
+
+        # Patch delete_object ở module storage được import lazy trong _cleanup_old_avatar.
+        # Dùng sys.modules để chặn thẳng hàm trong storage.
+        with patch("app.services.storage.delete_object") as delete_obj:
+            svc.update_doctor(
+                actor=actor, doctor_id=1,
+                data={"avatar_object_key": "same/a.jpg"},
+            )
+        # Không gọi delete vì cùng key.
+        delete_obj.assert_not_called()
+        # avatar_url cũ vẫn giữ (không bị invalidate).
+        assert doctor.avatar_url == "presigned-url"
+
+    def test_update_doctor_clear_avatar(self):
+        """PATCH avatar_object_key=null -> cleanup R2 + invalidate URL."""
+        svc, dr, _ = self._setup()
+        doctor = MagicMock(
+            license_number="X",
+            department_id=1,
+            avatar_object_key="old.jpg",
+            avatar_url="cached-url",
+        )
+        dr.find_by_id.return_value = doctor
+        actor = _user(has_roles=[Role.ADMIN])
+
+        with patch.object(svc, "_cleanup_old_avatar") as cleanup:
+            svc.update_doctor(
+                actor=actor, doctor_id=1,
+                data={"avatar_object_key": None},
+            )
+        cleanup.assert_called_once_with("old.jpg", None)
+        assert doctor.avatar_url is None
+
+    def test_update_doctor_partial_keeps_missing_fields(self):
+        """Field không gửi trong payload -> giữ nguyên giá trị gốc."""
+        svc, dr, _ = self._setup()
+        doctor = MagicMock(
+            full_name="Original",
+            license_number="OLD",
+            department_id=1,
+            phone="0901234567",
+            email="orig@example.com",
+            title="BS",
+            is_active=True,
+        )
+        dr.find_by_id.return_value = doctor
+        actor = _user(has_roles=[Role.ADMIN])
+
+        with patch.object(svc, "_cleanup_old_avatar"):
+            svc.update_doctor(
+                actor=actor, doctor_id=1,
+                data={"title": "TS"},  # chỉ đổi title
+            )
+
+        # Các field khác giữ nguyên.
+        assert doctor.phone == "0901234567"
+        assert doctor.email == "orig@example.com"
+        assert doctor.license_number == "OLD"
+        assert doctor.is_active is True
+        # Field đổi đã được set.
+        assert doctor.title == "TS"
+
+    def test_update_doctor_duplicate_email(self):
+        """Đổi email sang email của bác sĩ khác -> 422 doctor_duplicate_email."""
+        svc, dr, _ = self._setup()
+        doctor = MagicMock(
+            license_number="X",
+            department_id=1,
+            email="old@example.com",
+        )
+        dr.find_by_id.return_value = doctor
+        dr.find_by_email.return_value = MagicMock(id=99)
+        actor = _user(has_roles=[Role.ADMIN])
+
+        from app.errors import ValidationException
+
+        with pytest.raises(ValidationException) as exc_info:
+            svc.update_doctor(
+                actor=actor, doctor_id=1,
+                data={"email": "new@example.com"},
+            )
+        assert exc_info.value.message_key == "errors.doctor_duplicate_email"
+
+    def test_update_doctor_email_same_value_skips_check(self):
+        """Giữ nguyên email (gửi đúng email hiện tại) -> KHÔNG check duplicate."""
+        svc, dr, _ = self._setup()
+        doctor = MagicMock(
+            license_number="X",
+            department_id=1,
+            email="same@example.com",
+        )
+        dr.find_by_id.return_value = doctor
+        actor = _user(has_roles=[Role.ADMIN])
+
+        with patch.object(svc, "_cleanup_old_avatar"):
+            svc.update_doctor(
+                actor=actor, doctor_id=1,
+                data={"email": "same@example.com"},
+            )
+        dr.find_by_email.assert_not_called()
+
+    def test_update_doctor_get_raises_doctor_not_found_key(self):
+        """404 phải dùng i18n key 'errors.doctor_not_found', không phải key chung."""
+        from app.errors import NotFoundException
+
+        svc, dr, _ = self._setup()
+        dr.find_by_id.return_value = None
+        actor = _user(has_roles=[Role.ADMIN])
+        with pytest.raises(NotFoundException) as exc_info:
+            svc.update_doctor(actor=actor, doctor_id=999, data={"full_name": "X"})
+        assert exc_info.value.message_key == "errors.doctor_not_found"
+
 
 class TestDeleteDoctor:
     def test_delete_doctor_not_found(self):
@@ -401,7 +544,7 @@ class TestGetExpiringLicenses:
             department_repository=MagicMock(),
             role_repository=MagicMock(),
         )
-        actor = _user(has_roles=[Role.DOCTOR])
+        actor = _user(has_roles=[])  # không có role admin/staff -> bị denied
         with pytest.raises(ForbiddenException):
             svc.get_expiring_licenses(actor=actor, days=30)
 
@@ -416,3 +559,20 @@ class TestGetExpiringLicenses:
         result = svc.get_expiring_licenses(actor=actor, days=10)
         assert len(result) == 2
         svc.doctors.find_expiring_licenses.assert_called_once_with(10)
+
+
+class TestGetDoctorNotFound:
+    def test_get_doctor_uses_specific_message_key(self):
+        """Khi không tìm thấy doctor -> dùng i18n key 'errors.doctor_not_found'."""
+        from app.errors import NotFoundException
+
+        svc = DoctorService(
+            doctor_repository=MagicMock(),
+            department_repository=MagicMock(),
+            role_repository=MagicMock(),
+        )
+        svc.doctors.find_by_id.return_value = None
+        actor = _user(has_roles=[Role.ADMIN])
+        with pytest.raises(NotFoundException) as exc_info:
+            svc.get_doctor(actor=actor, doctor_id=999)
+        assert exc_info.value.message_key == "errors.doctor_not_found"

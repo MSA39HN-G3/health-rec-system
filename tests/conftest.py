@@ -21,6 +21,7 @@ os.environ.setdefault("FLASK_ENV", "testing")
 os.environ.setdefault("TESTING", "1")
 os.environ.setdefault("JWT_SECRET", "test-secret")
 os.environ.setdefault("JWT_EXPIRES", "3600")
+os.environ.setdefault("JWT_REFRESH_EXPIRES", "1209600")  # 14 days
 os.environ.setdefault("GOOGLE_CLIENT_ID", "test-google-client-id")
 os.environ.setdefault("GOOGLE_CLIENT_SECRET", "test-google-client-secret")
 os.environ.setdefault("GOOGLE_REDIRECT_URI", "http://localhost/cb")
@@ -35,7 +36,7 @@ os.environ.setdefault("RATELIMIT_ENABLED", "false")
 # SymptomCategory? — kiểm tra dưới).
 _SQLITE_SAFE_TABLES = {
     "users", "roles", "permissions", "user_roles", "role_permissions",
-    "oauth_states", "token_blacklist",
+    "oauth_states", "token_blacklist", "refresh_tokens",
     # SymptomCategory: dùng String/Integer, OK.
     "symptom_categories",
     # Bỏ "departments" (ARRAY/JSONB), "doctors" (FK tới departments → fail
@@ -164,7 +165,9 @@ def admin_user(db_sqlite, make_role, make_user):
 
 @pytest.fixture()
 def dept_head_user(db_sqlite, make_role, make_user):
-    role = make_role("department_head", ["department:manage"])
+    """User kiêm trưởng khoa: trước đây tạo role `department_head`, sau refactor
+    trở thành role `staff` (cùng tập permission cũ)."""
+    role = make_role("staff", ["department:manage"])
     return make_user(
         google_sub="g-head",
         email="head@test.local",
@@ -180,17 +183,6 @@ def plain_user(db_sqlite, make_role, make_user):
         google_sub="g-plain",
         email="plain@test.local",
         full_name="Plain",
-        roles=[role],
-    )
-
-
-@pytest.fixture()
-def doctor_user(db_sqlite, make_role, make_user):
-    role = make_role("doctor", [])
-    return make_user(
-        google_sub="g-doc",
-        email="doc@test.local",
-        full_name="Doctor Who",
         roles=[role],
     )
 
@@ -217,6 +209,19 @@ def auth_header(make_token):
         return {"Authorization": f"Bearer {token}"}
 
     return _header
+
+
+@pytest.fixture()
+def make_refresh_token(app):
+    """Phát refresh token thật (lưu DB) — dùng cho test refresh flow."""
+    from app.services.refresh_token_service import RefreshTokenService
+
+    def _make(user, **kwargs):
+        with app.app_context():
+            svc = RefreshTokenService()
+            return svc.issue(user, **kwargs)
+
+    return _make
 
 
 # ============================================================

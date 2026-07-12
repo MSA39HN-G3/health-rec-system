@@ -24,8 +24,8 @@ def test_create_patient_api_success(client, db_sqlite, monkeypatch, make_role, m
     mock_create = MagicMock(return_value=mock_patient)
     monkeypatch.setattr(_patient_service, "create_patient", mock_create)
 
-    # Create a user with user:manage permission required for creating patients
-    role = make_role("manager_role", ["user:manage"])
+    # Create a user with patient:manage permission required for creating patients
+    role = make_role("manager_role", ["patient:manage"])
     manager = make_user(email="manager@test.local", roles=[role])
     headers = auth_header(manager)
 
@@ -93,8 +93,8 @@ def test_update_patient_api_success(client, db_sqlite, monkeypatch, make_role, m
     mock_update = MagicMock(return_value=mock_patient)
     monkeypatch.setattr(_patient_service, "update_patient", mock_update)
 
-    # Create a user with user:manage permission required for updating patients
-    role = make_role("manager_role", ["user:manage"])
+    # Create a user with patient:manage permission required for updating patients
+    role = make_role("manager_role", ["patient:manage"])
     manager = make_user(email="manager@test.local", roles=[role])
     headers = auth_header(manager)
 

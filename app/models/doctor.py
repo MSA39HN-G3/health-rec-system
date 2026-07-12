@@ -1,8 +1,10 @@
 """Entity Doctor - bác sĩ của hệ thống.
 
 Tách khỏi User vì user là tài khoản đăng nhập, còn doctor là hồ sơ chuyên môn.
-Một department có một trưởng khoa (head_doctor trên Department) và nhiều doctor
-thuộc khoa đó (qua doctor.department_id).
+Một department có nhiều doctor thuộc khoa đó (qua doctor.department_id).
+Khái niệm "trưởng khoa" cũ (head_doctor_id tham chiếu tới user/doctor cụ
+thể) đã được bỏ — staff giờ quản lý tất cả bác sĩ trong khoa (xem migration
+1a2b3c4d5e6f).
 """
 from datetime import datetime, timezone
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -73,17 +75,11 @@ class Doctor(db.Model):
         cascade="all, delete-orphan",
     )
 
-    # === Phần 7: Thống kê & Đánh giá ===
+    # === Phần 7: Thống kê (đánh giá đã bỏ ở refactor 1c2d3e4f5a6b) ===
     statistics = db.relationship(
         "DoctorStatistics",
         backref="doctor",
         uselist=False,
-        cascade="all, delete-orphan",
-    )
-    ratings = db.relationship(
-        "DoctorRating",
-        backref="doctor",
-        lazy="dynamic",
         cascade="all, delete-orphan",
     )
 
@@ -99,7 +95,7 @@ class Doctor(db.Model):
                 self.avatar_url = None
         return self.avatar_url
 
-    def to_dict(self, include_stats=False, include_ratings=False):
+    def to_dict(self, include_stats=False):
         result = {
             "id": self.id,
             "full_name": self.full_name,
@@ -138,8 +134,6 @@ class Doctor(db.Model):
         }
         if include_stats and self.statistics:
             result["statistics"] = self.statistics.to_dict()
-        if include_ratings:
-            result["ratings"] = [r.to_dict() for r in self.ratings.limit(20).all()]
         return result
 
     def is_license_expiring_soon(self, days=30):

@@ -162,7 +162,7 @@ class TestCreateDocument:
             department_repository=department_repo,
         )
 
-        actor = _user(has_roles=[Role.DEPARTMENT_HEAD])
+        actor = _user(has_roles=[Role.STAFF])
         svc.create_document(
             actor=actor,
             doctor_id=1,
@@ -258,7 +258,7 @@ class TestVerifyDocument:
         doc_repo.find_by_id.return_value = _document(id=1)
 
         svc = _service(document_repository=doc_repo)
-        actor = _user(has_roles=[Role.DEPARTMENT_HEAD])
+        actor = _user(has_roles=[Role.STAFF])
 
         with pytest.raises(ForbiddenException):
             svc.verify_document(actor=actor, document_id=1)
@@ -346,7 +346,7 @@ class TestNotFoundBranches:
 
     def test_get_unverified_denies_non_admin(self):
         svc = _service()
-        actor = _user(has_roles=[Role.DOCTOR])
+        actor = _user(has_roles=[])  # không có role admin/staff -> bị denied
         with pytest.raises(ForbiddenException):
             svc.get_unverified_documents(actor=actor)
 

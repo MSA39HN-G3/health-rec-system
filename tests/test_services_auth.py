@@ -174,13 +174,23 @@ class TestLoginWithGoogle:
 class TestIssueToken:
     def test_returns_token_and_expiry(self, app):
         svc, *_ = _make_service(app)
+        fake_access_exp = datetime.now(timezone.utc)
         with patch(
             "app.services.auth_service.token_service.issue_access_token",
-            return_value=("token-xyz", "jti-123", datetime.now(timezone.utc)),
+            return_value=("token-xyz", "jti-123", fake_access_exp),
+        ), patch.object(
+            svc.refresh_tokens,
+            "issue",
+            return_value=("refresh-raw", fake_access_exp),
         ):
-            token, expires_at = svc.issue_token(MagicMock())
-        assert token == "token-xyz"
-        assert expires_at is not None
+            # User giả lập với .id để refresh_tokens.issue không lỗi.
+            fake_user = MagicMock()
+            fake_user.id = 1
+            result = svc.issue_token(fake_user)
+        # Sau refactor: trả về dict, không phải tuple.
+        assert result["access_token"] == "token-xyz"
+        assert result["access_expires_at"] == fake_access_exp
+        assert result["refresh_token"] == "refresh-raw"
 
 
 # ==========================================================================
