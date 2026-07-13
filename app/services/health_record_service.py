@@ -3,10 +3,10 @@ from datetime import datetime
 from ..errors import BadRequestException, NotFoundException
 from ..models.health_record import HealthRecord
 from ..repositories.department_repository import DepartmentRepository
+from ..repositories.doctor_repository import DoctorRepository
 from ..repositories.health_record_repository import HealthRecordRepository
 from ..repositories.patient_repository import PatientRepository
 from ..repositories.symptom_repository import SymptomRepository
-from ..repositories.user_repository import UserRepository
 
 
 class HealthRecordService:
@@ -20,7 +20,7 @@ class HealthRecordService:
     ):
         self.records = health_record_repository or HealthRecordRepository()
         self.patients = patient_repository or PatientRepository()
-        self.doctors = doctor_repository or UserRepository()
+        self.doctors = doctor_repository or DoctorRepository()
         self.departments = department_repository or DepartmentRepository()
         self.symptoms = symptom_repository or SymptomRepository()
 

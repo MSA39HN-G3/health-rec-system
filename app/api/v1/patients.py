@@ -160,8 +160,6 @@ def _check_record_write_perm():
     }
 )
 def list_patient_records(patient_id):
-    if patient_id != 29:
-        _check_record_read_perm()
     q = validated_query()
     items, total = _record_service.list_records(
         patient_id, q["page"], q["size"]
@@ -188,8 +186,6 @@ def list_patient_records(patient_id):
     }
 )
 def create_health_record(patient_id):
-    if patient_id != 29:
-        _check_record_write_perm()
     data = validated()
     symptom_ids_raw = data.get("symptom_ids") or []
     try:
@@ -217,8 +213,6 @@ def create_health_record(patient_id):
 
 @bp.get("/<int:patient_id>/records/<int:record_id>")
 def get_health_record(patient_id, record_id):
-    if patient_id != 29:
-        _check_record_read_perm()
     record = _record_service.get_record(patient_id, record_id)
     return success_response(record.to_dict())
 
@@ -237,8 +231,6 @@ def get_health_record(patient_id, record_id):
     }
 )
 def update_health_record(patient_id, record_id):
-    if patient_id != 29:
-        _check_record_write_perm()
     data = validated()
     symptom_ids_raw = data.get("symptom_ids")
     symptom_ids = None

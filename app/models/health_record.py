@@ -37,7 +37,7 @@ class HealthRecord(db.Model):
     )
     doctor_id = db.Column(
         db.Integer,
-        db.ForeignKey("users.id", ondelete="SET NULL"),
+        db.ForeignKey("doctors.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -57,7 +57,7 @@ class HealthRecord(db.Model):
         db.DateTime(timezone=True), default=_now, onupdate=_now, nullable=False
     )
 
-    doctor = db.relationship("User", lazy="joined")
+    doctor = db.relationship("Doctor", lazy="joined")
     department = db.relationship("Department", lazy="joined")
 
     symptoms = db.relationship(

@@ -230,16 +230,19 @@ def test_update_health_record_api_success(client, db_sqlite, monkeypatch, make_r
     )
 
 
-def test_get_health_records_patient_29_no_auth(client, db_sqlite, monkeypatch):
-    """Test that patient 29 records can be accessed without authentication, while patient 1 cannot."""
+def test_get_health_records_all_patients_no_auth(client, db_sqlite, monkeypatch):
+    """Test that any patient's records can be accessed without authentication."""
     mock_list = MagicMock(return_value=([], 0))
     monkeypatch.setattr("app.api.v1.patients._record_service", MagicMock(list_records=mock_list))
 
     # Without authorization header, patient 29 should succeed (200 OK)
     response = client.get("/api/v1/patients/29/records")
     assert response.status_code == 200
-    mock_list.assert_called_once_with(29, 1, 20)
 
-    # Without authorization header, patient 1 should fail (401 Unauthorized)
+    # Without authorization header, patient 38 should succeed (200 OK)
+    response_38 = client.get("/api/v1/patients/38/records")
+    assert response_38.status_code == 200
+
+    # Without authorization header, patient 1 should also succeed (200 OK)
     response_p1 = client.get("/api/v1/patients/1/records")
-    assert response_p1.status_code == 401
+    assert response_p1.status_code == 200
